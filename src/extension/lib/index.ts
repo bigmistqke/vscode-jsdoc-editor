@@ -39,7 +39,9 @@ function createWebview(context: vscode.ExtensionContext, callback: (panel: vscod
       html,
       nonce,
       contentSecurityPolicy,
-      basePath: path.join(context.extensionPath, 'build/'),
+      basePath: panel.webview.asWebviewUri(
+        vscode.Uri.file(path.join(context.extensionPath, 'build/')),
+      ) as unknown as string,
     })
 
     // // Serialize the document back to a string
@@ -75,7 +77,7 @@ function createDevWebview(
       html,
       nonce,
       contentSecurityPolicy,
-      basePath: path.join(context.extensionPath, 'build/'),
+      basePath: `http://${origin}`,
     })
     const document = dom.window.document
 
@@ -123,7 +125,7 @@ function createDom({
 
   // Add base tag to head
   const base = document.createElement('base')
-  base.setAttribute('href', panel.webview.asWebviewUri(vscode.Uri.file(basePath)) as unknown as string)
+  base.setAttribute('href', basePath)
   document.head.prepend(base)
 
   document.querySelectorAll('script').forEach((script) => (script.nonce = nonce))
