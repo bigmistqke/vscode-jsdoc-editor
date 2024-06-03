@@ -17,6 +17,13 @@ export const activate = createWebviews((panel: vscode.WebviewPanel) => {
       case 'hello':
         vscode.window.showInformationMessage?.(text)
         return
+      case 'dev:load':
+        if (text === 'error') {
+          vscode.window.showErrorMessage?.(
+            `Unable to connect to development server: http://${config.dev.location}:${config.dev.port}/${config.dev.entry}`,
+          )
+        }
+        return
     }
   })
 }, config)

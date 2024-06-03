@@ -83,10 +83,8 @@ function createDevWebview(
       'img-src': `vscode-resource: https: http: data:`,
       'script-src': `'nonce-${nonce}'`,
       'style-src': `vscode-resource: 'unsafe-inline' http: https: data:`,
-      'connect-src': `https://* ws://${origin} ws://0.0.0.0:${dev.port} http://${origin} http://0.0.0.0:${dev.port}`,
+      'connect-src': `https://* http://${origin} http://0.0.0.0:${dev.port} ws://${origin} ws://0.0.0.0:${dev.port}`,
     }
-
-    fetch(js).catch(() => vscode.window.showErrorMessage?.(`Can not access ${js}.`))
 
     panel.webview.html = /* html */ `<!DOCTYPE html>
       <html lang="en">
@@ -97,6 +95,22 @@ function createDevWebview(
         <body>
           <noscript>You need to enable JavaScript to run this app.</noscript>
           <div id="root"></div>
+          <script nonce="${nonce}">
+            if (typeof acquireVsCodeApi === 'function') {
+              window.vscode = acquireVsCodeApi()
+            }
+            fetch("http://${origin}").then(
+              () => vscode.postMessage({
+                command: 'dev:load',
+                text: 'success',
+              })
+            ).catch(
+              () => vscode.postMessage({
+                command: 'dev:load',
+                text: 'error',
+              })
+            )
+          </script>
           <script type="module" nonce="${nonce}" src="${js}"></script>
           <script nonce="${nonce}">
             /**
@@ -127,7 +141,6 @@ function createDevWebview(
 
               // Function to adjust a single node's image path if needed
               function adjustImagePath(node) {
-                console.log('this happens')
                 if (node.nodeType === 1 && (node.tagName === 'IMG' || node.tagName === 'VIDEO' || node.tagName === 'SOURCE')) {
                   let src = node.getAttribute('src');
                   if (src && src.startsWith('/src')) {
