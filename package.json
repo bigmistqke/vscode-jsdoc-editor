@@ -1,6 +1,7 @@
 {
   "name": "vscode-webview-solid",
-  "version": "0.0.0",
+  "author": "bigmistqke",
+  "version": "0.1.0",
   "description": "",
   "engines": {
     "vscode": "^1.23.0"
