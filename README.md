@@ -117,7 +117,7 @@ const App: Component = () => {
 To test a built version of the project, follow these steps:
 
 1. Build the project: `pnpm build`
-2. Open (by pressing `F5`) or reload the VS Code Extension Development Host window.
+2. Open the VS Code Extension Development Host window by pressing `F5`.
 3. Open the command palette in VS Code with `Cmd/Ctrl + P`.
 4. Enter `> Start Solid Webview`.
 
@@ -133,6 +133,6 @@ To develop locally with hot module replacement (HMR), follow these steps:
 4. Enter `> Start Solid Webview (Dev)`.
 5. Any changes you make will automatically trigger hot module reloading.
 
-If you change the entry point or the port, remember to adjust the `devConfig`-configuration in [`src/extension`](#srcextension) accordingly.
+If you change the entry point or the port, remember to adjust the `devConfig`-configuration in [`src/extension/index.ts`](#srcextensionindexts) accordingly.
 
 To avoid exporting the dev-mode command, remember to remove it from `package.json` when publishing your extension.
