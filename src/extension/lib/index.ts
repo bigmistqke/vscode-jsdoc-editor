@@ -35,13 +35,14 @@ function createWebview(context: vscode.ExtensionContext, callback: (panel: vscod
 
     const html = readFileSync(path.join(context.extensionPath, 'build', 'index.html'), 'utf8')
     const dom = createDom({
+      panel,
       html,
       nonce,
       contentSecurityPolicy,
       basePath: path.join(context.extensionPath, 'build/'),
     })
 
-    // Serialize the document back to a string
+    // // Serialize the document back to a string
     panel.webview.html = dom.serialize()
 
     callback(panel)
@@ -70,6 +71,7 @@ function createDevWebview(
 
     const html = readFileSync(path.join(context.extensionPath, 'index.html'), 'utf8')
     const dom = createDom({
+      panel,
       html,
       nonce,
       contentSecurityPolicy,
@@ -103,11 +105,13 @@ function createDevWebview(
 }
 
 function createDom({
+  panel,
   html,
   nonce,
   basePath,
   contentSecurityPolicy,
 }: {
+  panel: vscode.WebviewPanel
   html: string
   nonce: string
   basePath: string
@@ -119,8 +123,7 @@ function createDom({
 
   // Add base tag to head
   const base = document.createElement('base')
-  // @ts-expect-error
-  base.setAttribute('href', panel.webview.asWebviewUri(vscode.Uri.file(basePath)))
+  base.setAttribute('href', panel.webview.asWebviewUri(vscode.Uri.file(basePath)) as unknown as string)
   document.head.prepend(base)
 
   document.querySelectorAll('script').forEach((script) => (script.nonce = nonce))
