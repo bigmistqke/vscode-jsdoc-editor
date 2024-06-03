@@ -1,14 +1,7 @@
-import * as path from 'path'
-import * as vscode from 'vscode'
-
-export function getUriFromRelativePathFactory(context: vscode.ExtensionContext, panel: vscode.WebviewPanel) {
-  return (...paths: string[]) => panel.webview.asWebviewUri(vscode.Uri.file(path.join(context.extensionPath, ...paths)))
-}
-
-export function createCspString(config: Record<string, string>) {
+export function createContentSecurityPolicyString(config: Record<string, string>) {
   return Object.entries(config)
     .map(([key, value]) => `${key} ${value};`)
-    .join()
+    .join(' ')
 }
 
 /**

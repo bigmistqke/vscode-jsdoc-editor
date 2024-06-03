@@ -1,15 +1,13 @@
 import * as vscode from 'vscode'
-import { Config, createWebviews } from './lib'
+import { DevConfig, createActivate } from './lib'
 
-const config: Config = {
-  dev: {
-    location: 'localhost',
-    port: '6969',
-    entry: 'src/webview/index.tsx',
-  },
+const devConfig: DevConfig = {
+  location: 'localhost',
+  port: '6969',
+  entry: 'src/webview/index.tsx',
 }
 
-export const activate = createWebviews((panel: vscode.WebviewPanel) => {
+export const activate = createActivate((panel: vscode.WebviewPanel) => {
   panel.webview.onDidReceiveMessage((message: any) => {
     const command = message.command
     const text = message.text
@@ -20,10 +18,10 @@ export const activate = createWebviews((panel: vscode.WebviewPanel) => {
       case 'dev:load':
         if (text === 'error') {
           vscode.window.showErrorMessage?.(
-            `Unable to connect to development server: http://${config.dev.location}:${config.dev.port}/${config.dev.entry}`,
+            `Unable to connect to development server: http://${devConfig.location}:${devConfig.port}`,
           )
         }
         return
     }
   })
-}, config)
+}, devConfig)
