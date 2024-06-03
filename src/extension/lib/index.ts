@@ -32,16 +32,14 @@ function createWebview(context: vscode.ExtensionContext, callback: (panel: vscod
       'script-src': `'nonce-${nonce}'`,
       'style-src': `vscode-resource: 'unsafe-inline' http: https: data:`,
     }
+    const baseUri = panel.webview.asWebviewUri(vscode.Uri.file(path.join(context.extensionPath, 'build/')))
 
     const html = readFileSync(path.join(context.extensionPath, 'build', 'index.html'), 'utf8')
     const dom = createDom({
-      panel,
       html,
       nonce,
       contentSecurityPolicy,
-      basePath: panel.webview.asWebviewUri(
-        vscode.Uri.file(path.join(context.extensionPath, 'build/')),
-      ) as unknown as string,
+      basePath: baseUri as unknown as string,
     })
 
     // // Serialize the document back to a string
@@ -73,7 +71,6 @@ function createDevWebview(
 
     const html = readFileSync(path.join(context.extensionPath, 'index.html'), 'utf8')
     const dom = createDom({
-      panel,
       html,
       nonce,
       contentSecurityPolicy,
@@ -107,13 +104,11 @@ function createDevWebview(
 }
 
 function createDom({
-  panel,
   html,
   nonce,
   basePath,
   contentSecurityPolicy,
 }: {
-  panel: vscode.WebviewPanel
   html: string
   nonce: string
   basePath: string
