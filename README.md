@@ -75,7 +75,7 @@ This directory contains a typical Solid.js project for the webview.
 
 The `vscode` Webview API is exposed in the `window` object to allow communication between the webview and the VS Code extension.
 
-````tsx
+```tsx
 const App: Component = () => {
   function onClick() {
     window.vscode.postMessage({
