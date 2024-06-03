@@ -2,7 +2,7 @@
   <img width="100%" src="https://assets.solidjs.com/banner?type=vscode-webview-solid&background=tiles&project=%20" alt="vscode-webview-solid">
 </p>
 
-`vscode-webview-solid` is a Visual Studio Code extension starter for integrating a Solid.js frontend with a VS Code extension.
+`vscode-webview-solid` is a starter for integrating a Solid.js frontend with a VS Code extension.
 
 ## Table of Contents
 
@@ -18,10 +18,10 @@
 The project structure is organized as follows:
 
 - src
-  - [extension](#srcextension)
+  - extension
     - index.ts
     - lib
-  - [webview](#srcwebview)
+  - webview
     - index.tsx
     - App.tsx
     - ...
@@ -30,7 +30,7 @@ The project structure is organized as follows:
 
 This directory contains the VS Code extension activation logic and configuration.
 
-- `index.ts`: Main entry point for the VS Code extension. Here, users can add their commands and manage the state.
+- `index.ts`: The main entry point for the VS Code extension. Here, you can add your commands and manage the state.
 
 ```typescript
 import * as vscode from 'vscode'
