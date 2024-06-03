@@ -72,7 +72,7 @@ This directory contains a typical Solid.js project for the webview.
 To test a built version of the project, follow these steps:
 
 1. Build the project: `pnpm build`
-2. Open the VS Code Extension Development Host window by pressing `F5`.
+2. Open the `VS Code Extension Development Host` window by pressing `F5`.
 3. Open the command palette in VS Code with `Cmd/Ctrl + P`.
 4. Enter `> Start Solid Webview`.
 
@@ -82,12 +82,15 @@ Each time you make a change, you will need to repeat these steps.
 
 To develop locally with hot module replacement (HMR), follow these steps:
 
-1. Start the development server: `pnpm dev`
-2. Open the VS Code Extension Development Host window by pressing `F5`.
-3. Open the command palette in VS Code with `Cmd/Ctrl + P`.
-4. Enter `> Start Solid Webview (Dev)`.
-5. Any changes you make will automatically trigger hot module reloading.
+1. If `src/extension` has changed, build it: `pnpm build`
+2. Start the development server: `pnpm dev`
+3. Open the `VS Code Extension Development Host` window by pressing `F5`.
+4. Open the command palette in VS Code with `Cmd/Ctrl + P`.
+5. Enter `> Start Solid Webview (Dev)`.
 
-If you change the entry point or the port, remember to adjust the configuration in `src/extension/index.ts` accordingly.
+Any changes made in `src/webview` will automatically trigger hot module reloading. For changes made in `src/extension`, you will need to run `pnpm build` and reload the `VS Code Extension Development Host` window.
 
-To avoid exporting the dev-mode command, remember to remove it from `package.json` when publishing your extension.
+### Note
+
+- If you change the entry point or the port, remember to adjust the configuration in `src/extension/index.ts` accordingly.
+- To avoid exporting the dev-mode command, remove it from `package.json` when publishing your extension.
