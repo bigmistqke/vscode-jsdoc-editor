@@ -1,33 +1,203 @@
-.App {
-  text-align: center;
-}
-
-.logo {
-  animation: logo-spin infinite 20s linear;
-  height: 40vmin;
-  pointer-events: none;
-}
-
-.header {
-  background-color: #282c34;
-  min-height: 100vh;
+.root {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
-}
+  height: 100vh;
+  overflow: hidden;
 
-.link {
-  color: #b318f0;
-}
-
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+  & input,
+  & button {
+    outline: 1px solid var(--border-color);
+    border: none;
+    border-radius: 5px;
+    background-color: transparent;
+    padding: 5px 10px;
+    color: white;
+    &:focus {
+      outline: 1px solid var(--border-color-active);
+    }
+    &:hover:not(:focus) {
+      outline: 1px solid var(--border-color-hover);
+    }
   }
-  to {
-    transform: rotate(360deg);
+  & button {
+    cursor: pointer;
+    &.active {
+      background: var(--button-color-hover);
+    }
+    &:hover {
+      background: var(--button-color-hover);
+    }
+  }
+}
+
+.comments {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 20px;
+  padding-bottom: 20px;
+  overflow: auto;
+
+  & h1 {
+    word-wrap: break-word;
+    all: unset;
+    position: sticky;
+    top: 0px;
+    z-index: 1;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--background-color);
+    padding: 10px 20px;
+    font-size: 16pt;
+  }
+
+  & .file {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  & .comment {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    contain: layout;
+    padding: 0px 20px;
+
+    & .header {
+      display: flex;
+      align-items: baseline;
+      gap: 5px;
+
+      & h2 {
+        all: unset;
+        display: flex;
+        flex: 1;
+        align-items: baseline;
+        gap: 5px;
+        overflow: hidden;
+        color: white;
+        font-size: 10pt;
+        white-space: nowrap;
+
+        & .target {
+          background: transparent;
+          overflow: hidden;
+          color: white;
+          text-overflow: ellipsis;
+        }
+      }
+    }
+
+    & .textareaContainer {
+      display: flex;
+      flex-direction: column;
+
+      &:has(.error) .textarea {
+        border-bottom-right-radius: 0px;
+        border-bottom-left-radius: 0px;
+      }
+
+      & .textarea {
+        border: 1px solid var(--border-color);
+        border-radius: 5px;
+
+        &:focus-within {
+          border: 1px solid var(--border-color-active);
+        }
+        &:hover:not(:focus-within) {
+          border: 1px solid var(--border-color-hover);
+        }
+
+        & code {
+          background-color: unset;
+          padding: unset;
+        }
+      }
+
+      & .error {
+        border-bottom-right-radius: 5px;
+        border-bottom-left-radius: 5px;
+        background: rgb(244, 74, 74);
+        padding: 5px;
+        color: white;
+      }
+
+      & .highlight {
+        display: block;
+        position: absolute !important;
+        position: relative;
+        top: 0px;
+        z-index: 0;
+        pointer-events: none;
+        color: transparent;
+        font-family: monospace;
+        white-space: pre;
+      }
+    }
+  }
+}
+
+.searchAndReplace {
+  display: grid;
+  position: absolute;
+  right: 50px;
+  grid-template-columns: 1fr 150px;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  z-index: 10;
+  border: 1px solid var(--border-color);
+  border-top: none;
+  border-bottom-right-radius: 10px;
+  border-bottom-left-radius: 10px;
+  background-color: var(--background-color);
+  padding: 10px;
+  width: 400px;
+
+  & .searchContainer {
+    display: flex;
+    position: relative;
+    flex: 1;
+
+    & input {
+      flex: 1;
+    }
+
+    & .searchIcons {
+      display: flex;
+      position: absolute;
+      top: 0px;
+      right: 0px;
+      justify-content: center;
+      align-items: center;
+      gap: 5px;
+      padding-right: 4px;
+      height: 100%;
+
+      & button {
+        padding: 2.5px 5px;
+      }
+    }
+  }
+
+  & .count {
+    width: 75px;
+  }
+
+  & .button {
+    outline: none;
+    padding: 0px;
+    color: var(--border-color);
+    font-size: 12pt;
+    &:focus {
+      outline: none;
+      background: transparent;
+      color: white;
+    }
+  }
+
+  & .row {
+    display: flex;
+    gap: 5px;
   }
 }

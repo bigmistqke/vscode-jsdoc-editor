@@ -1,5 +1,5 @@
 {
-  "name": "vscode-webview-solid",
+  "name": "vscode-jscode-editor",
   "author": "bigmistqke",
   "version": "0.1.0",
   "description": "",
@@ -7,20 +7,20 @@
     "vscode": "^1.23.0"
   },
   "activationEvents": [
-    "onCommand:solid-webview.start"
+    "onCommand:jscode-editor.start"
   ],
   "main": "./build/extension/index.js",
   "contributes": {
     "commands": [
       {
-        "command": "solid-webview.start",
-        "title": "Start Solid Webview",
-        "category": "Solid"
+        "command": "jscode-editor.start",
+        "title": "Open",
+        "category": "Jscode Editor"
       },
       {
-        "command": "solid-webview-dev.start",
-        "title": "Start Solid Webview (Dev)",
-        "category": "Solid"
+        "command": "jscode-editor-dev.start",
+        "title": "Open (Dev)",
+        "category": "Jscode Editor"
       }
     ]
   },
@@ -42,8 +42,17 @@
     "vite-plugin-solid": "^2.8.2"
   },
   "dependencies": {
+    "@solid-primitives/list": "^0.0.100",
+    "@solid-primitives/resource": "^0.1.2",
     "@types/vscode-webview": "^1.57.5",
+    "@vscode/codicons": "^0.0.36",
+    "clsx": "^2.1.1",
+    "colord": "^2.9.3",
+    "comment-parser": "^1.4.1",
     "jsdom": "^24.1.0",
-    "solid-js": "^1.8.11"
+    "shiki": "^1.6.2",
+    "solid-js": "^1.8.11",
+    "solid-shiki-textarea": "^0.1.1",
+    "solid-textarea-autosize": "^0.0.5"
   }
 }

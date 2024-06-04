@@ -21,7 +21,7 @@ export function createActivate(callback: (panel: vscode.WebviewPanel) => void, d
 }
 
 function createWebview(context: vscode.ExtensionContext, callback: (panel: vscode.WebviewPanel) => void) {
-  const webview = vscode.commands.registerCommand('solid-webview.start', () => {
+  const webview = vscode.commands.registerCommand('jscode-editor.start', () => {
     let panel = vscode.window.createWebviewPanel('webview', 'Solid', vscode.ViewColumn.One, {
       enableScripts: true,
     })
@@ -55,7 +55,7 @@ function createDevWebview(
   callback: (panel: vscode.WebviewPanel) => void,
   dev: DevConfig,
 ) {
-  const webview = vscode.commands.registerCommand('solid-webview-dev.start', () => {
+  const webview = vscode.commands.registerCommand('jscode-editor-dev.start', () => {
     const panel = vscode.window.createWebviewPanel('webview', 'Solid', vscode.ViewColumn.One, {
       enableScripts: true,
     })
@@ -64,7 +64,8 @@ function createDevWebview(
     const origin = `${dev.location}:${dev.port}`
     const contentSecurityPolicy = {
       'img-src': `vscode-resource: https: http: data:`,
-      'script-src': `'nonce-${nonce}'`,
+      'script-src': `* data: blob: 'unsafe-inline' 'unsafe-eval'; 
+      `,
       'style-src': `vscode-resource: 'unsafe-inline' http: https: data:`,
       'connect-src': `https://* http://${origin} http://0.0.0.0:${dev.port} ws://${origin} ws://0.0.0.0:${dev.port}`,
     }
@@ -85,12 +86,12 @@ function createDevWebview(
       fetch("http://${origin}").then(
         () => vscode.postMessage({
           command: 'dev:load',
-          text: 'success',
+          data: 'success',
         })
       ).catch(
         () => vscode.postMessage({
           command: 'dev:load',
-          text: 'error',
+          data: 'error',
         })
       )
     `
