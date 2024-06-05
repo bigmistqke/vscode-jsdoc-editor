@@ -51,7 +51,7 @@
     width: 75px;
   }
 
-  & .typoButton {
+  & .iconButton {
     outline: none !important;
     padding: 0px;
     color: var(--border-color);

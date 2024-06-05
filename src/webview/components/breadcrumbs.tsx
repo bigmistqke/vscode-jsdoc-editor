@@ -1,5 +1,5 @@
 import { For, Show } from 'solid-js'
-import { Codicon } from '../codicon/codicon'
+import { Codicon } from '~/solid-codicon'
 
 export function BreadCrumbs(props: { breadcrumbs: string[] }) {
   return (

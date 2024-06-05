@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "baseUrl": "./",
     "strict": true,
     "target": "ESNext",
     "module": "ESNext",
@@ -10,7 +11,11 @@
     "jsxImportSource": "solid-js",
     "types": ["vite/client"],
     "noEmit": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "paths": {
+      "~extension/*": ["./src/extension/*"],
+      "~/*": ["./src/webview/*"]
+    }
   },
   "include": ["src/webview"],
   "exclude": ["node_modules", "ext-src"],

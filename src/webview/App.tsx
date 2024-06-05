@@ -1,12 +1,12 @@
 import { getHighlighter } from 'shiki'
 import { For, Index, Setter, createResource, createSignal, onMount } from 'solid-js'
 import { createStore, reconcile } from 'solid-js/store'
+import type { Files, UpdateAllConfig } from '~extension/types'
 import styles from './App.module.css'
 import { BreadCrumbs } from './components/breadcrumbs'
 import { Comment as CommentComponent } from './components/comment'
 import { SearchAndReplace } from './components/search-and-replace'
-import { Files } from './types'
-import { getNameFromPath } from './utils/get-name-from-path'
+import { createIdFromPath } from './utils/create-id-from-path'
 
 export default function App() {
   const [comments, setComments] = createStore<Files>([])
@@ -32,11 +32,18 @@ export default function App() {
     window.vscode.postMessage({ command: 'initialize' })
   })
 
-  const updateComment = (filePath: string, index: number, newComment: string) => {
+  function onUpdate(filePath: string, index: number, newComment: string) {
     setComments(({ path }) => path === filePath, 'comments', index, 'source', newComment)
     window.vscode.postMessage({
-      command: 'updateComment',
+      command: 'update',
       data: { filePath, index, comment: newComment },
+    })
+  }
+
+  function onUpdateAll(data: UpdateAllConfig) {
+    window.vscode.postMessage({
+      command: 'updateAll',
+      data,
     })
   }
 
@@ -92,7 +99,8 @@ export default function App() {
         open={isSearchAndReplaceOpened()}
         comments={comments}
         onClose={() => setIsSearchAndReplaceOpened(false)}
-        onUpdate={updateComment}
+        onUpdate={onUpdate}
+        onUpdateAll={onUpdateAll}
         onMount={onSearchInputMount}
       />
       <div class={styles.comments}>
@@ -105,10 +113,10 @@ export default function App() {
               <Index each={file.comments}>
                 {(comment, index) => (
                   <CommentComponent
-                    id={`${getNameFromPath(file.relativePath)}${index}`}
+                    id={`${createIdFromPath(file.path)}${index}`}
                     theme={theme()}
                     comment={comment()}
-                    onUpdate={(value) => updateComment(file.path, index, value)}
+                    onUpdate={(value) => onUpdate(file.path, index, value)}
                     onOpenLine={() => openFileAtLine(file.path, comment().line)}
                   />
                 )}

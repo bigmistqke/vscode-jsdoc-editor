@@ -1,7 +1,7 @@
 import { parse } from 'comment-parser'
 import { Show, createEffect, createSignal } from 'solid-js'
-import { ShikiTextarea } from '../solid-shiki-textarea'
-import { type Comment } from '../types'
+import { ShikiTextarea } from '~/solid-shiki-textarea'
+import { type Comment } from '~/types'
 import { BreadCrumbs } from './breadcrumbs'
 import styles from './comment.module.css'
 

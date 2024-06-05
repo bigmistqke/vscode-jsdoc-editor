@@ -1,15 +1,14 @@
 import clsx from 'clsx'
-import { Setter, Show, createEffect, createMemo, createSignal, onMount } from 'solid-js'
-import { Codicon } from '../codicon/codicon'
-import type { Files } from '../types'
-import { getNameFromPath } from '../utils/get-name-from-path'
-import { spliceString } from '../utils/splice-string'
+import { Setter, Show, createEffect, createMemo, createSignal, on, onMount } from 'solid-js'
+import { Codicon } from '~/solid-codicon'
+import { createIdFromPath } from '~/utils/create-id-from-path'
+import { decrementSignal, incrementSignal } from '~/utils/increment-signal'
+import { onToggle } from '~/utils/on-toggle'
+import { spliceString } from '~/utils/splice-string'
+import type { Files, UpdateAllConfig } from '~extension/types'
+import { composeRegex } from '~extension/utils/compose-regex'
 import { getHighlightElement } from './comment'
 import styles from './search-and-replace.module.css'
-
-function escapeRegExp(string: string): string {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // $& means the whole matched string
-}
 
 export function SearchAndReplace(props: {
   onMount: (api: {
@@ -20,6 +19,7 @@ export function SearchAndReplace(props: {
   open: boolean
   comments: Files
   onUpdate: (filePath: string, index: number, source: string) => void
+  onUpdateAll: (config: UpdateAllConfig) => void
   onClose: () => void
 }) {
   const [searchQuery, setSearchQuery] = createSignal<string>('')
@@ -27,11 +27,15 @@ export function SearchAndReplace(props: {
   const [isRegex, setIsRegex] = createSignal(false)
   const [isCaseSensitive, setIsCaseSensitive] = createSignal(false)
   const [isWholeWord, setIsWholeWord] = createSignal(false)
-  const [matchIndex, setMatchIndex] = createSignal(0)
+  const [currentMatchIndex, setMatchIndex] = createSignal(0)
 
-  const resultsHighlight = new Highlight()
-  CSS.highlights.set('search-inactive', resultsHighlight)
-  let currentHighlight = new Highlight()
+  const highlights = {
+    allMatches: new Highlight(),
+    currentMatch: new Highlight(),
+  }
+
+  CSS.highlights.set('all-matches', highlights.allMatches)
+
   let searchInput: HTMLInputElement
   let replaceInput: HTMLInputElement
   let searchIcons: HTMLDivElement
@@ -39,17 +43,17 @@ export function SearchAndReplace(props: {
   const matches = createMemo(() => {
     const _query = searchQuery()
     if (!_query) return []
-    const result: { start: number; end: number; filePath: string; index: number; id: string }[] = []
+    const result: { start: number; end: number; path: string; index: number; id: string }[] = []
     for (const { path, comments } of props.comments) {
       let index = 0
       for (const comment of comments) {
         result.push(
-          ...findAllOccurrences(_query, comment.source).map(([start, end]) => ({
+          ...findAllOccurrences(comment.source).map(([start, end]) => ({
             start,
             end,
-            filePath: path,
+            path,
             index,
-            id: `${getNameFromPath(path)}${index}`,
+            id: `${createIdFromPath(path)}${index}`,
           })),
         )
         index++
@@ -58,14 +62,16 @@ export function SearchAndReplace(props: {
     return result
   })
 
-  function findAllOccurrences(query: string, inputString: string): Array<[number, number]> {
-    let searchString = isRegex() ? query : escapeRegExp(query)
+  const incrementMatchIndex = () => incrementSignal(setMatchIndex, matches().length - 1)
+  const decrementMatchIndex = () => decrementSignal(setMatchIndex, matches().length - 1)
 
-    if (isWholeWord()) {
-      searchString = `\\b${searchString}\\b`
-    }
-
-    const regex = new RegExp(searchString, `g${isCaseSensitive() ? '' : 'i'}`)
+  function findAllOccurrences(inputString: string): Array<[number, number]> {
+    const regex = composeRegex({
+      query: searchQuery(),
+      isCaseSensitive: isCaseSensitive(),
+      isWholeWord: isWholeWord(),
+      isRegex: isRegex(),
+    })
     const matches = inputString.matchAll(regex)
     const ranges: Array<[number, number]> = []
 
@@ -79,16 +85,19 @@ export function SearchAndReplace(props: {
   }
 
   function select() {
-    currentHighlight.clear()
-    resultsHighlight.clear()
-    const match = matches()[matchIndex()]
+    highlights.currentMatch.clear()
+    highlights.allMatches.clear()
+
+    const match = matches()[currentMatchIndex()]
     if (!match) return
+
     const textarea = document.getElementById(match.id)?.querySelector('textarea')
     const highlight = getHighlightElement(match.id)?.firstChild
+
     if (textarea && highlight) {
       textarea.focus()
       textarea.setSelectionRange(match.start, match.end)
-      // textarea.scrollIntoView({ block: 'center' })
+
       const range = new Range()
       range.setStart(highlight, match.start)
       range.setStart(highlight, match.end)
@@ -103,121 +112,105 @@ export function SearchAndReplace(props: {
     }
   }
 
-  function search(matchIndex: number) {
-    const match = matches()[matchIndex]
-    if (!match) return
-    const container = document.getElementById(match.id)
-    const code = getHighlightElement(match.id)
-    const textNode = code?.firstChild
-    if (container && textNode) {
-      const range = new Range()
-      range.setStart(textNode, match.start)
-      range.setEnd(textNode, match.end)
-
-      const { left } = range.getBoundingClientRect()
-
-      if (left + container.scrollLeft > container.offsetWidth + container.scrollLeft) {
-        container.scrollLeft = left - container.offsetWidth / 2
-      }
-
-      if (left + container.scrollLeft < container.scrollLeft) {
-        container.scrollLeft = left - container.offsetWidth / 2
-      }
-
-      currentHighlight = new Highlight(range)
-      CSS.highlights.set('search', currentHighlight)
-      code.scrollIntoView({ block: 'center' })
-    }
-  }
-
-  function searchNext() {
-    search(
-      setMatchIndex((matchIndex) => {
-        matchIndex = matchIndex + 1
-        if (matchIndex > matches().length - 1) {
-          return 0
-        }
-        return matchIndex
-      }),
-    )
-  }
-
-  function searchPrevious() {
-    search(
-      setMatchIndex((matchIndex) => {
-        matchIndex = matchIndex - 1
-        if (matchIndex < 0) {
-          return matches().length - 1
-        }
-        return matchIndex
-      }),
-    )
-  }
-
   function replace() {
-    const match = matches()[matchIndex()]
+    const match = matches()[currentMatchIndex()]
 
-    const originalSource = props.comments.find((comment) => comment.path === match.filePath)?.comments[match.index]
-      ?.source
+    const originalSource = props.comments.find((comment) => comment.path === match.path)?.comments[match.index]?.source
 
     if (!originalSource) {
-      console.error('Can not find source', props.comments, match.filePath)
+      console.error('Can not find source', props.comments, match.path)
       return
     }
 
     const source = spliceString(originalSource, match.start, match.end - match.start, replaceQuery())
-    props.onUpdate(match.filePath, match.index, source)
+    props.onUpdate(match.path, match.index, source)
+
+    if (findAllOccurrences(replaceQuery())) {
+      incrementMatchIndex()
+    }
   }
 
   function replaceAll() {
-    matches().forEach((match, index) => {
-      const originalSource = props.comments.find((comment) => comment.path === match.filePath)?.comments[match.index]
-        ?.source
-
-      if (!originalSource) {
-        console.error('Can not find source', props.comments, match.filePath)
-        return
-      }
-
-      const source = spliceString(originalSource, match.start, match.end - match.start, replaceQuery())
-      props.onUpdate(match.filePath, index, source)
+    props.onUpdateAll({
+      search: {
+        query: searchQuery(),
+        isRegex: isRegex(),
+        isWholeWord: isWholeWord(),
+        isCaseSensitive: isCaseSensitive(),
+      },
+      replace: replaceQuery(),
     })
   }
 
-  // Highlight search matches
-  createEffect(() => {
-    resultsHighlight.clear()
-    currentHighlight.clear()
-    for (const match of matches()) {
-      const code = getHighlightElement(match.id)
-      const textNode = code?.firstChild
-      if (textNode) {
-        const range = new Range()
-        range.setStart(textNode, match.start)
-        range.setEnd(textNode, match.end)
-        resultsHighlight.add(range)
+  // Highlight current match
+  createEffect(
+    on(matches, (matches) => {
+      const match = matches[currentMatchIndex()]
+
+      if (!match) {
+        highlights.currentMatch.clear()
+        return
       }
-    }
-  })
 
-  createEffect(() => {
-    if (props.open) {
-      setMatchIndex(0)
-      search(0)
-    }
-  })
+      queueMicrotask(() => {
+        const container = document.getElementById(match.id)
+        const code = getHighlightElement(match.id)
+        const textNode = code?.firstChild
 
-  onMount(() => {
-    props.onMount({ searchInput, replaceInput, setSearchQuery })
-  })
+        if (container && textNode) {
+          const range = new Range()
+          range.setStart(textNode, match.start)
+          range.setEnd(textNode, match.end)
+
+          const { left } = range.getBoundingClientRect()
+
+          if (left + container.scrollLeft > container.offsetWidth + container.scrollLeft) {
+            container.scrollLeft = left - container.offsetWidth / 2
+          }
+
+          if (left + container.scrollLeft < container.scrollLeft) {
+            container.scrollLeft = left - container.offsetWidth / 2
+          }
+
+          highlights.currentMatch = new Highlight(range)
+          CSS.highlights.set('current-match', highlights.currentMatch)
+          code.scrollIntoView({ block: 'center' })
+        }
+      })
+    }),
+  )
+
+  // Highlight all matches
+  createEffect(
+    on(matches, (matches) => {
+      highlights.allMatches.clear()
+      queueMicrotask(() => {
+        for (const match of matches) {
+          const code = getHighlightElement(match.id)
+          const textNode = code?.firstChild
+          if (textNode) {
+            const range = new Range()
+            range.setStart(textNode, match.start)
+            range.setEnd(textNode, match.end)
+            highlights.allMatches.add(range)
+          }
+        }
+      })
+    }),
+  )
+
+  // Reset match index when opening
+  createEffect(() => props.open && setMatchIndex(0))
+
+  onMount(() => props.onMount({ searchInput, replaceInput, setSearchQuery }))
 
   function onKeyDown(e: KeyboardEvent) {
     switch (e.key) {
       case 'Enter':
         if (e.target === searchInput) {
           const sub = e.shiftKey
-          if (sub) searchPrevious()
-          else searchNext()
+          if (sub) decrementMatchIndex()
+          else incrementMatchIndex()
         }
         break
       case 'ArrowDown':
@@ -242,16 +235,6 @@ export function SearchAndReplace(props: {
     }
   }
 
-  function onSearchInput(e: InputEvent & { currentTarget: HTMLInputElement }) {
-    setMatchIndex(0)
-    setSearchQuery(e.currentTarget.value)
-    search(matchIndex())
-  }
-
-  function onReplaceInput(e: InputEvent & { currentTarget: HTMLInputElement }) {
-    setReplaceQuery(e.currentTarget.value)
-  }
-
   return (
     <div
       aria-hidden={props.open}
@@ -264,7 +247,10 @@ export function SearchAndReplace(props: {
           placeholder="find"
           ref={searchInput!}
           value={searchQuery()}
-          onInput={onSearchInput}
+          onInput={(e) => {
+            setMatchIndex(0)
+            setSearchQuery(e.currentTarget.value)
+          }}
         />
         <div ref={searchIcons!} class={styles.searchIcons}>
           <Codicon
@@ -273,7 +259,7 @@ export function SearchAndReplace(props: {
             as="button"
             type="case-sensitive"
             class={isCaseSensitive() && 'active'}
-            onClick={() => setIsCaseSensitive((isCaseSensitive) => !isCaseSensitive)}
+            onClick={onToggle(setIsCaseSensitive)}
           />
           <Codicon
             aria-label="Match Whole Word"
@@ -281,7 +267,7 @@ export function SearchAndReplace(props: {
             as="button"
             type="whole-word"
             class={isWholeWord() && 'active'}
-            onClick={() => setIsWholeWord((isWholeWord) => !isWholeWord)}
+            onClick={onToggle(setIsWholeWord)}
           />
           <Codicon
             aria-label="Use Regular Expression"
@@ -289,7 +275,7 @@ export function SearchAndReplace(props: {
             as="button"
             class={isRegex() && 'active'}
             type="regex"
-            onClick={() => setIsRegex((isRegex) => !isRegex)}
+            onClick={onToggle(setIsRegex)}
           />
         </div>
       </div>
@@ -297,29 +283,29 @@ export function SearchAndReplace(props: {
       <div class={styles.row}>
         <div class={styles.count}>
           <Show when={matches().length > 0} fallback="No results.">
-            {matchIndex()} of {matches().length}
+            {currentMatchIndex() + 1} of {matches().length}
           </Show>
         </div>
         <Codicon
           aria-label="Search Previous Occurence"
           title="Search Previous Occurence"
           as="button"
-          class={styles.typoButton}
+          class={styles.iconButton}
           type="arrow-up"
-          onClick={searchPrevious}
+          onClick={decrementMatchIndex}
         />
         <Codicon
           aria-label="Search Next Occurence"
           title="Search Next Occurence"
           as="button"
-          class={styles.typoButton}
+          class={styles.iconButton}
           type="arrow-down"
-          onClick={searchNext}
+          onClick={incrementMatchIndex}
         />
         <Codicon
           aria-label="Close Search Panel"
           as="button"
-          class={styles.typoButton}
+          class={styles.iconButton}
           type="close"
           onClick={() => props.onClose()}
         />
@@ -328,7 +314,7 @@ export function SearchAndReplace(props: {
         ref={replaceInput!}
         aria-label="Replace Input"
         placeholder="replace"
-        onInput={onReplaceInput}
+        onInput={(e) => setReplaceQuery(e.currentTarget.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             replace()

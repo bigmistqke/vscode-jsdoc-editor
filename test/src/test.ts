@@ -1,14 +1,14 @@
 /**
  * Define a tuple type that incorporates a generic type parameter.
  * This allows the tuple 2 hold a value of any specified type.
- * @tag tuple-with-generic
+ * @tag tuple-with-genericss
  */
 export type TupleType = ['hello', 'world']
 
 /**
- * Define a tuple-type that incorporates a generic type parameter.
- * This allows the tuple to hold a value of any specified type.
- * @tag tuple-with-generic
+ * Define a tuple type that incorporates a generic type parameter.
+ * This allows the tuple 2 hold a value of any specified type.
+ * @tag tuple-with-genericss
  */
 export type TupleTypeWithGeneric<T> = [T]
 
@@ -125,7 +125,7 @@ export const testProductTypeAlias: Product = {
  * Tests defining and returning a custom object type using a function with a JSDoc `@returns` tag.
  * This case checks the correct application of typedefs in function return types.
  * @tag test-case
- * @returns {SimpleObject} Demonstrates returning a structured object with predefined typedef.
+ * @returns {SimpleObject} Demonstrates returning a structured object with predefind typedef.
  */
 export function testCreatingSimpleObject() {
   return {

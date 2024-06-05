@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import { ComponentProps, ValidComponent, splitProps } from 'solid-js'
 import { Dynamic } from 'solid-js/web'
-import styles from './codicon.module.css'
+import styles from './solid-codicon.module.css'
 
 const codiconMap = {
   add: 'ea60',

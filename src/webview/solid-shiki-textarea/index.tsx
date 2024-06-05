@@ -16,8 +16,7 @@ import {
   type JSX,
 } from 'solid-js'
 import { Dynamic } from 'solid-js/web'
-// @ts-expect-error
-import styles from './index.module.css'
+import styles from './solid-shiki-textarea.module.css'
 import { calculateContrastingColor } from './utils/calculate-contrasting-color'
 import { whenever } from './utils/conditionals'
 import { processProps } from './utils/process-props'

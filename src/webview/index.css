@@ -20,10 +20,10 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
 }
 
-:root::highlight(search) {
+:root::highlight(current-match) {
   background-color: rgb(50, 63, 108);
 }
 
-:root::highlight(search-inactive) {
+:root::highlight(all-matches) {
   background-color: rgb(91, 49, 46);
 }

@@ -1,9 +1,9 @@
-import path from 'path'
 import { defineConfig } from 'vite'
 import solidPlugin from 'vite-plugin-solid'
+import tsconfigPaths from 'vite-tsconfig-paths'
 
 export default defineConfig({
-  plugins: [solidPlugin()],
+  plugins: [solidPlugin(), tsconfigPaths()],
   server: {
     port: 6969,
   },
@@ -12,9 +12,4 @@ export default defineConfig({
     outDir: './build',
   },
   base: './',
-  resolve: {
-    alias: {
-      '@vscode/codicon': path.resolve(__dirname, 'node_modules/@vscode/codicon'),
-    },
-  },
 })

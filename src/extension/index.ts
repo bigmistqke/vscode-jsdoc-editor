@@ -1,7 +1,8 @@
 import * as vscode from 'vscode'
 import { extractComments } from './extract-comments'
 import { Config, createActivate } from './lib'
-import { File } from './types'
+import { File, RegexConfig } from './types'
+import { composeRegex } from './utils/compose-regex'
 
 const config: Config = {
   csp: {
@@ -30,8 +31,12 @@ export const activate = createActivate((panel: vscode.WebviewPanel) => {
         panel.webview.postMessage({ command: 'setComments', comments: files })
         sendCurrentTheme()
         return
-      case 'updateComment':
+      case 'update':
         await updateComment(data.filePath, data.index, data.comment)
+        panel.webview.postMessage({ command: 'setComments', comments: files })
+        return
+      case 'updateAll':
+        await updateAll(data)
         panel.webview.postMessage({ command: 'setComments', comments: files })
         return
       case 'openFileAtLine':
@@ -105,6 +110,39 @@ export const activate = createActivate((panel: vscode.WebviewPanel) => {
 
     // Recalculate all ranges for the comments in the updated file
     file.comments = extractComments(document)
+  }
+
+  async function updateAll(config: { search: RegexConfig; replace: string }) {
+    return Promise.all(
+      files.map(async (file) => {
+        const fileUri = vscode.Uri.file(file.path)
+        const document = await vscode.workspace.openTextDocument(fileUri)
+        const source = document.getText()
+
+        // Find all matches
+        const matches = [...source.matchAll(composeRegex(config.search))]
+
+        // Create a workspace edit
+        const edit = new vscode.WorkspaceEdit()
+        matches.forEach((match) => {
+          if (match.index !== undefined) {
+            const startPos = document.positionAt(match.index)
+            const endPos = document.positionAt(match.index + match[0].length)
+            const range = new vscode.Range(startPos, endPos)
+            edit.replace(document.uri, range, config.replace)
+          }
+        })
+
+        // Apply the edit
+        await vscode.workspace.applyEdit(edit)
+        await document.save()
+
+        if (matches.length > 0) {
+          // Recalculate all ranges for the comments in the updated file
+          file.comments = extractComments(document)
+        }
+      }),
+    )
   }
 
   async function openFileAtLine(filePath: string, line: number) {
