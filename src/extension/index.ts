@@ -1,8 +1,9 @@
-import { parse } from 'comment-parser'
+import * as fs from 'fs'
+import * as ts from 'typescript'
 import * as vscode from 'vscode'
 import { DevConfig, createActivate } from './lib'
 
-export type Comment = { source: string; line: number; range: vscode.Range; target?: string }
+export type Comment = { source: string; line: number; range: vscode.Range; target?: string; breadcrumbs: string[] }
 type CommentsByFile = Record<string, Comment[]>
 
 const devConfig: DevConfig = {
@@ -13,8 +14,6 @@ const devConfig: DevConfig = {
 
 export const activate = createActivate((panel: vscode.WebviewPanel) => {
   let comments: Record<string, Comment[]> = {} // Store comments grouped by file
-
-  vscode.window.showInformationMessage?.('ACTIVATE')
 
   panel.webview.onDidReceiveMessage(async (message: any) => {
     const command = message.command
@@ -71,7 +70,8 @@ export const activate = createActivate((panel: vscode.WebviewPanel) => {
 
     for (const file of jsFiles) {
       const document = await vscode.workspace.openTextDocument(file)
-      commentsByFile[file.fsPath] = await getCommentsForFile(document)
+
+      commentsByFile[file.fsPath] = extractJSDocWithBreadcrumbs(file.fsPath)
     }
 
     return commentsByFile
@@ -88,43 +88,8 @@ export const activate = createActivate((panel: vscode.WebviewPanel) => {
     await document.save()
 
     // Recalculate all ranges for the comments in the updated file
-    const updatedComments = await getCommentsForFile(document)
+    const updatedComments = await extractJSDocWithBreadcrumbs(document.uri.fsPath)
     comments[filePath] = updatedComments
-  }
-
-  async function getCommentsForFile(document: vscode.TextDocument): Promise<Comment[]> {
-    const content = document.getText()
-    const fileComments = parse(content, { spacing: 'preserve' })
-    let comments: Comment[] = []
-
-    fileComments.forEach((block) => {
-      // Combine the lines into a single string
-      const source = block.source.map((line) => line.source).join('\n')
-
-      // Calculate the line number and range of the comment
-      const startIndex = content.indexOf(source)
-      const line = content.substring(0, startIndex).split('\n').length - 1
-      const startPos = document.positionAt(startIndex)
-      const endPos = document.positionAt(startIndex + source.length)
-      const range = new vscode.Range(startPos, endPos)
-
-      let targetIndex = endPos.line + 1
-      let target: string | undefined = 'undefined'
-
-      while (targetIndex < document.lineCount) {
-        const targetValue = document.lineAt(targetIndex)
-
-        if (targetValue.text.trimEnd() !== '') {
-          target = targetValue.text
-          break
-        }
-        targetIndex++
-      }
-
-      comments.push({ source, line, range, target })
-    })
-
-    return comments
   }
 
   async function openFileAtLine(filePath: string, line: number) {
@@ -141,3 +106,112 @@ export const activate = createActivate((panel: vscode.WebviewPanel) => {
     editor.revealRange(selection, vscode.TextEditorRevealType.InCenter)
   }
 }, devConfig)
+
+// Function to extract JSDoc comments and breadcrumbs
+function extractJSDocWithBreadcrumbs(fileName: string): Comment[] {
+  // Read the file content
+  const fileContent = fs.readFileSync(fileName, 'utf8')
+
+  // Create a source file (AST)
+  const sourceFile = ts.createSourceFile(fileName, fileContent, ts.ScriptTarget.Latest, true)
+
+  const commentsWithBreadcrumbs: Comment[] = []
+
+  const nodes = new Set<ts.Node>()
+
+  // Helper function to add breadcrumbs
+  function addBreadcrumbs(node: ts.Node, path: string[] = []): void {
+    if (nodes.has(node)) return
+    nodes.add(node)
+
+    let name: string | undefined
+
+    if (ts.isVariableStatement(node)) {
+      node.declarationList.declarations.forEach((declaration) => {
+        if (declaration.name && ts.isVariableDeclaration(declaration) && ts.isIdentifier(declaration.name)) {
+          addBreadcrumbs(declaration, path)
+        }
+      })
+      return
+    } else if (
+      'name' in node &&
+      node.name &&
+      (ts.isIdentifier(node.name as ts.Node) || ts.isPrivateIdentifier(node.name as ts.Node))
+    ) {
+      name = (node.name as ts.Identifier).getText()
+    }
+
+    if (name) {
+      path = [...path, name]
+    }
+
+    // Handling jsDoc Nodes
+    if ('jsDoc' in node && node.jsDoc) {
+      ;(node.jsDoc as any[]).forEach((jsDoc) => {
+        const start = jsDoc.getStart()
+        const end = jsDoc.getEnd()
+        const startLineChar = sourceFile.getLineAndCharacterOfPosition(start)
+        const endLineChar = sourceFile.getLineAndCharacterOfPosition(end)
+        const breadcrumb = [...path]
+        commentsWithBreadcrumbs.push({
+          source: jsDoc.getText(),
+          line: startLineChar.line + 1, // Lines are 0-based in TypeScript, converting to 1-based
+          range: new vscode.Range(
+            new vscode.Position(startLineChar.line, startLineChar.character),
+            new vscode.Position(endLineChar.line, endLineChar.character),
+          ),
+          breadcrumbs: breadcrumb,
+        })
+      })
+    }
+
+    // Handling Nested Structures
+    if (
+      ts.isTypeLiteralNode(node) ||
+      ts.isInterfaceDeclaration(node) ||
+      ts.isTypeAliasDeclaration(node) ||
+      ts.isObjectLiteralExpression(node) ||
+      ts.isClassDeclaration(node) ||
+      ts.isMethodDeclaration(node) ||
+      ts.isConstructorDeclaration(node)
+    ) {
+      node.forEachChild((member) => {
+        if (
+          ts.isPropertySignature(member) ||
+          ts.isPropertyAssignment(member) ||
+          ts.isMethodDeclaration(member) ||
+          ts.isConstructorDeclaration(member) ||
+          ts.isGetAccessorDeclaration(member) ||
+          ts.isSetAccessorDeclaration(member) ||
+          ts.isParameter(member)
+        ) {
+          if (ts.isConstructorDeclaration(member)) {
+            addBreadcrumbs(member, [...path, 'Constructor'])
+          } else {
+            addBreadcrumbs(member, path)
+          }
+
+          if (ts.isMethodDeclaration(member) || ts.isConstructorDeclaration(member)) {
+            member.parameters.forEach((parameter) => {
+              if (ts.isIdentifier(parameter.name)) {
+                const parameterName = parameter.name.getText()
+                addBreadcrumbs(parameter, [...path, parameterName])
+              }
+            })
+          }
+        } else {
+          addBreadcrumbs(member, path) // Preserve path for non-named members
+        }
+      })
+    } else {
+      ts.forEachChild(node, (childNode) => {
+        addBreadcrumbs(childNode, path)
+      })
+    }
+  }
+
+  // Start the breadcrumb addition process
+  addBreadcrumbs(sourceFile)
+
+  return commentsWithBreadcrumbs
+}

@@ -38,6 +38,9 @@ importers:
       solid-js:
         specifier: ^1.8.11
         version: 1.8.11
+      solid-presence:
+        specifier: ^0.1.6
+        version: 0.1.6(solid-js@1.8.11)
       solid-shiki-textarea:
         specifier: ^0.1.1
         version: 0.1.1(solid-js@1.8.11)
@@ -252,6 +255,11 @@ packages:
     resolution: {integrity: sha512-+uarb83brBzPKN38NX1MkB6vb6+mwvR6amUulqAE7ccQw1pEl+bCia9TbdG1lsnFP7lZySvUn37CHyXQdfTwzg==}
     engines: {node: '>=6.9.0'}
 
+  '@corvu/utils@0.2.0':
+    resolution: {integrity: sha512-cY0w+SotjOtBX+9oE90vis1Mu2spwGhtcAn4jmrl7JPqQrm68DH/0Rh3R52dN2MbgPVZL06N3mvys18myF5/0Q==}
+    peerDependencies:
+      solid-js: ^1.8
+
   '@esbuild/aix-ppc64@0.19.11':
     resolution: {integrity: sha512-FnzU0LyE3ySQk7UntJO4+qIiQgI7KoODnZg5xzXIrFJlKd2P2gwHsHY4927xj9y5PJmJSzULiUCWmv7iWnNa7g==}
     engines: {node: '>=12'}
@@ -389,6 +397,15 @@ packages:
     engines: {node: '>=12'}
     cpu: [x64]
     os: [win32]
+
+  '@floating-ui/core@1.6.2':
+    resolution: {integrity: sha512-+2XpQV9LLZeanU4ZevzRnGFg2neDeKHgFLjP6YLW+tly0IvrhqT4u8enLGjLH3qeh85g19xY5rsAusfwTdn5lg==}
+
+  '@floating-ui/dom@1.6.5':
+    resolution: {integrity: sha512-Nsdud2X65Dz+1RHjAIP0t8z5e2ff/IRbei6BqFrl1urT8sDVzM1HMQ+R0XcU5ceRfyO3I6ayeqIfh+6Wb8LGTw==}
+
+  '@floating-ui/utils@0.2.2':
+    resolution: {integrity: sha512-J4yDIIthosAsRZ5CPYP/jQvUAQtlZTTD/4suA08/FEnlxqW3sKS9iAhgsa9VYLZ6vDHn/ixJgIqRQPotoBjxIw==}
 
   '@jridgewell/gen-mapping@0.3.3':
     resolution: {integrity: sha512-HLhSWOLRi875zjjMG/r+Nv0oCW8umGb0BgEhyX3dDX3egwZtB8PqLnjz3yedt8R5StBrzcg4aBpnh8UA9D1BoQ==}
@@ -891,6 +908,11 @@ packages:
   solid-js@1.8.11:
     resolution: {integrity: sha512-WdwmER+TwBJiN4rVQTVBxocg+9pKlOs41KzPYntrC86xO5sek8TzBYozPEZPL1IRWDouf2lMrvSbIs3CanlPvQ==}
 
+  solid-presence@0.1.6:
+    resolution: {integrity: sha512-J0SLoXIkqJ9q1reaCJfcaUFz3XmKxhcKp7iUi8QvrWHHeWbVVy/IIAEd/yaZHRzWs0x61SPUdP5YrparwqmWeA==}
+    peerDependencies:
+      solid-js: ^1.8
+
   solid-refresh@0.6.3:
     resolution: {integrity: sha512-F3aPsX6hVw9ttm5LYlth8Q15x6MlI/J3Dn+o3EQyRTtTxidepSTwAYdozt01/YA+7ObcciagGEyXIopGZzQtbA==}
     peerDependencies:
@@ -1262,6 +1284,11 @@ snapshots:
       '@babel/helper-validator-identifier': 7.22.20
       to-fast-properties: 2.0.0
 
+  '@corvu/utils@0.2.0(solid-js@1.8.11)':
+    dependencies:
+      '@floating-ui/dom': 1.6.5
+      solid-js: 1.8.11
+
   '@esbuild/aix-ppc64@0.19.11':
     optional: true
 
@@ -1330,6 +1357,17 @@ snapshots:
 
   '@esbuild/win32-x64@0.19.11':
     optional: true
+
+  '@floating-ui/core@1.6.2':
+    dependencies:
+      '@floating-ui/utils': 0.2.2
+
+  '@floating-ui/dom@1.6.5':
+    dependencies:
+      '@floating-ui/core': 1.6.2
+      '@floating-ui/utils': 0.2.2
+
+  '@floating-ui/utils@0.2.2': {}
 
   '@jridgewell/gen-mapping@0.3.3':
     dependencies:
@@ -1850,6 +1888,11 @@ snapshots:
       csstype: 3.1.2
       seroval: 1.0.4
       seroval-plugins: 1.0.4(seroval@1.0.4)
+
+  solid-presence@0.1.6(solid-js@1.8.11):
+    dependencies:
+      '@corvu/utils': 0.2.0(solid-js@1.8.11)
+      solid-js: 1.8.11
 
   solid-refresh@0.6.3(solid-js@1.8.11):
     dependencies:

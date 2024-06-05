@@ -12,19 +12,21 @@
     background-color: transparent;
     padding: 5px 10px;
     color: white;
-    &:focus {
+    &:not(.typoButton):focus {
       outline: 1px solid var(--border-color-active);
+      background: var(--button-color-focus);
     }
-    &:hover:not(:focus) {
+    &:not(.typoButton):hover:not(:focus) {
       outline: 1px solid var(--border-color-hover);
     }
   }
+
   & button {
     cursor: pointer;
     &.active {
       background: var(--button-color-hover);
     }
-    &:hover {
+    &:not(.typoButton):hover {
       background: var(--button-color-hover);
     }
   }
@@ -59,7 +61,7 @@
   & .comment {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 10px;
     contain: layout;
     padding: 0px 20px;
 
@@ -67,23 +69,26 @@
       display: flex;
       align-items: baseline;
       gap: 5px;
+      font-size: 10pt;
+
+      & button {
+        font-size: 8pt;
+      }
 
       & h2 {
         all: unset;
         display: flex;
         flex: 1;
-        align-items: baseline;
+        align-items: center;
         gap: 5px;
         overflow: hidden;
         color: white;
         font-size: 10pt;
-        white-space: nowrap;
 
         & .target {
           background: transparent;
           overflow: hidden;
           color: white;
-          text-overflow: ellipsis;
         }
       }
     }
@@ -103,6 +108,7 @@
 
         &:focus-within {
           border: 1px solid var(--border-color-active);
+          background: var(--textarea-color-focus);
         }
         &:hover:not(:focus-within) {
           border: 1px solid var(--border-color-hover);
@@ -146,6 +152,8 @@
   align-items: center;
   gap: 10px;
   z-index: 10;
+  transition: transform 0.25s;
+  box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.5);
   border: 1px solid var(--border-color);
   border-top: none;
   border-bottom-right-radius: 10px;
@@ -153,6 +161,10 @@
   background-color: var(--background-color);
   padding: 10px;
   width: 400px;
+
+  &:not(.open) {
+    transform: translateY(-100%);
+  }
 
   & .searchContainer {
     display: flex;
@@ -184,14 +196,13 @@
     width: 75px;
   }
 
-  & .button {
+  & .typoButton {
     outline: none;
     padding: 0px;
     color: var(--border-color);
     font-size: 12pt;
-    &:focus {
-      outline: none;
-      background: transparent;
+    &:focus,
+    &:hover {
       color: white;
     }
   }

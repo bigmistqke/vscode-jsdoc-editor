@@ -22,7 +22,7 @@ export function createActivate(callback: (panel: vscode.WebviewPanel) => void, d
 
 function createWebview(context: vscode.ExtensionContext, callback: (panel: vscode.WebviewPanel) => void) {
   const webview = vscode.commands.registerCommand('jscode-editor.start', () => {
-    let panel = vscode.window.createWebviewPanel('webview', 'Solid', vscode.ViewColumn.One, {
+    let panel = vscode.window.createWebviewPanel('webview', 'Jscode Editor', vscode.ViewColumn.One, {
       enableScripts: true,
     })
 
@@ -56,7 +56,7 @@ function createDevWebview(
   dev: DevConfig,
 ) {
   const webview = vscode.commands.registerCommand('jscode-editor-dev.start', () => {
-    const panel = vscode.window.createWebviewPanel('webview', 'Solid', vscode.ViewColumn.One, {
+    const panel = vscode.window.createWebviewPanel('webview', 'Jscode Editor', vscode.ViewColumn.One, {
       enableScripts: true,
     })
 

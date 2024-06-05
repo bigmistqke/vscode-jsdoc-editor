@@ -52,6 +52,7 @@
     "jsdom": "^24.1.0",
     "shiki": "^1.6.2",
     "solid-js": "^1.8.11",
+    "solid-presence": "^0.1.6",
     "solid-shiki-textarea": "^0.1.1",
     "solid-textarea-autosize": "^0.0.5"
   }

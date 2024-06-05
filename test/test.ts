@@ -1,5 +1,5 @@
 /**
- * Define a tuple type that incorporates a generic type parameter.
+ * define a tuple-type that incorporates a generic type parameter.
  * This allows the tuple 2 hold a value of any specified type.
  * @tag tuple-with-generic
  */
@@ -47,7 +47,7 @@ export const testObjectWithInlinedJSDoc: {
 }
 
 /**
- * Tests type with generic
+ * Constructor that initializes user details.
  */
 type ObjectTypeWithGeneric<T> = {
   /**
