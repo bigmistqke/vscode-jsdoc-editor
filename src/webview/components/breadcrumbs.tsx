@@ -1,0 +1,17 @@
+import { For, Show } from 'solid-js'
+import { Codicon } from '../codicon/codicon'
+
+export function BreadCrumbs(props: { breadcrumbs: string[] }) {
+  return (
+    <For each={props.breadcrumbs}>
+      {(breadcrumb, index) => (
+        <>
+          <span>{breadcrumb}</span>
+          <Show when={index() !== props.breadcrumbs.length - 1}>
+            <Codicon type="chevron-right" />
+          </Show>
+        </>
+      )}
+    </For>
+  )
+}

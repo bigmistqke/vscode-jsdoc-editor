@@ -1,11 +1,11 @@
 import clsx from 'clsx'
 import { Setter, Show, createEffect, createMemo, createSignal, onMount } from 'solid-js'
-import { Comment } from '../App'
 import { Codicon } from '../codicon/codicon'
-import { spliceString } from '../utils/splice-string'
-
-import styles from '../App.module.css'
+import type { Files } from '../types'
 import { getNameFromPath } from '../utils/get-name-from-path'
+import { spliceString } from '../utils/splice-string'
+import { getHighlightElement } from './comment'
+import styles from './search-and-replace.module.css'
 
 function escapeRegExp(string: string): string {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // $& means the whole matched string
@@ -18,7 +18,7 @@ export function SearchAndReplace(props: {
     setSearchQuery: Setter<string>
   }) => void
   open: boolean
-  comments: Record<string, Comment[]>
+  comments: Files
   onUpdate: (filePath: string, index: number, source: string) => void
   onClose: () => void
 }) {
@@ -30,6 +30,7 @@ export function SearchAndReplace(props: {
   const [matchIndex, setMatchIndex] = createSignal(0)
 
   const resultsHighlight = new Highlight()
+  CSS.highlights.set('search-inactive', resultsHighlight)
   let currentHighlight = new Highlight()
   let searchInput: HTMLInputElement
   let replaceInput: HTMLInputElement
@@ -38,18 +39,17 @@ export function SearchAndReplace(props: {
   const matches = createMemo(() => {
     const _query = searchQuery()
     if (!_query) return []
-    const entries = Object.entries(props.comments)
     const result: { start: number; end: number; filePath: string; index: number; id: string }[] = []
-    for (const [filePath, fileComments] of entries) {
+    for (const { path, comments } of props.comments) {
       let index = 0
-      for (const fileComment of fileComments) {
+      for (const comment of comments) {
         result.push(
-          ...findAllOccurrences(_query, fileComment.source).map(([start, end]) => ({
+          ...findAllOccurrences(_query, comment.source).map(([start, end]) => ({
             start,
             end,
-            filePath,
+            filePath: path,
             index,
-            id: `${getNameFromPath(filePath)}${index}`,
+            id: `${getNameFromPath(path)}${index}`,
           })),
         )
         index++
@@ -84,7 +84,7 @@ export function SearchAndReplace(props: {
     const match = matches()[matchIndex()]
     if (!match) return
     const textarea = document.getElementById(match.id)?.querySelector('textarea')
-    const highlight = document.getElementById(match.id)?.querySelector(`.${styles.highlight}`)?.firstChild
+    const highlight = getHighlightElement(match.id)?.firstChild
     if (textarea && highlight) {
       textarea.focus()
       textarea.setSelectionRange(match.start, match.end)
@@ -107,7 +107,7 @@ export function SearchAndReplace(props: {
     const match = matches()[matchIndex]
     if (!match) return
     const container = document.getElementById(match.id)
-    const code = container?.querySelector(`code.${styles.highlight}`)
+    const code = getHighlightElement(match.id)
     const textNode = code?.firstChild
     if (container && textNode) {
       const range = new Range()
@@ -156,23 +156,30 @@ export function SearchAndReplace(props: {
 
   function replace() {
     const match = matches()[matchIndex()]
-    const source = spliceString(
-      props.comments[match.filePath][match.index].source,
-      match.start,
-      match.end - match.start,
-      replaceQuery(),
-    )
+
+    const originalSource = props.comments.find((comment) => comment.path === match.filePath)?.comments[match.index]
+      ?.source
+
+    if (!originalSource) {
+      console.error('Can not find source', props.comments, filePath)
+      return
+    }
+
+    const source = spliceString(originalSource, match.start, match.end - match.start, replaceQuery())
     props.onUpdate(match.filePath, matchIndex(), source)
   }
 
   function replaceAll() {
     matches().forEach((match, index) => {
-      const source = spliceString(
-        props.comments[match.filePath][match.index].source,
-        match.start,
-        match.end - match.start,
-        replaceQuery(),
-      )
+      const originalSource = props.comments.find((comment) => comment.path === match.filePath)?.comments[match.index]
+        ?.source
+
+      if (!originalSource) {
+        console.error('Can not find source', props.comments, match.filePath)
+        return
+      }
+
+      const source = spliceString(originalSource, match.start, match.end - match.start, replaceQuery())
       props.onUpdate(match.filePath, index, source)
     })
   }
@@ -182,7 +189,7 @@ export function SearchAndReplace(props: {
     resultsHighlight.clear()
     currentHighlight.clear()
     for (const match of matches()) {
-      const code = document.getElementById(match.id)?.querySelector(`code.${styles.highlight}`)
+      const code = getHighlightElement(match.id)
       const textNode = code?.firstChild
       if (textNode) {
         const range = new Range()
@@ -202,7 +209,6 @@ export function SearchAndReplace(props: {
 
   onMount(() => {
     props.onMount({ searchInput, replaceInput, setSearchQuery })
-    CSS.highlights.set('search-inactive', resultsHighlight)
   })
 
   function onKeyDown(e: KeyboardEvent) {
@@ -256,7 +262,7 @@ export function SearchAndReplace(props: {
             title="Match Case"
             as="button"
             type="case-sensitive"
-            class={isCaseSensitive() && styles.active}
+            class={isCaseSensitive() && 'active'}
             onClick={() => setIsCaseSensitive((isCaseSensitive) => !isCaseSensitive)}
           />
           <Codicon
@@ -264,14 +270,14 @@ export function SearchAndReplace(props: {
             title="Match Whole Word"
             as="button"
             type="whole-word"
-            class={isWholeWord() && styles.active}
+            class={isWholeWord() && 'active'}
             onClick={() => setIsWholeWord((isWholeWord) => !isWholeWord)}
           />
           <Codicon
             aria-label="Use Regular Expression"
             title="Use Regular Expression"
             as="button"
-            class={isRegex() && styles.active}
+            class={isRegex() && 'active'}
             type="regex"
             onClick={() => setIsRegex((isRegex) => !isRegex)}
           />

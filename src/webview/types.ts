@@ -1,3 +1,5 @@
+import * as vscode from 'vscode'
+
 export type Comment = {
   source: string
   line: number
@@ -5,3 +7,5 @@ export type Comment = {
   target?: string
   breadcrumbs: string[]
 }
+
+export type Files = { path: string; relativePath: string; comments: Comment[] }[]

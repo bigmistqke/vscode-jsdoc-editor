@@ -2,32 +2,38 @@ import { getHighlighter } from 'shiki'
 import { For, Index, Setter, createResource, createSignal, onMount } from 'solid-js'
 import { createStore, reconcile } from 'solid-js/store'
 import styles from './App.module.css'
+import { BreadCrumbs } from './components/breadcrumbs'
 import { Comment as CommentComponent } from './components/comment'
 import { SearchAndReplace } from './components/search-and-replace'
-import { type Comment } from './types'
+import { Files } from './types'
 import { getNameFromPath } from './utils/get-name-from-path'
 
 export default function App() {
-  const [comments, setComments] = createStore<Record<string, Comment[]>>({})
+  const [comments, setComments] = createStore<Files>([])
   const [theme, setTheme] = createSignal<string>() // Default theme
   const [isSearchAndReplaceOpened, setIsSearchAndReplaceOpened] = createSignal(false)
+  const [basePath, setBasePath] = createSignal('')
 
   onMount(() => {
     window.addEventListener('message', (event) => {
       const message = event.data
-      console.log('received message', message)
-      if (message.command === 'setComments') {
-        window.vscode.setState({ comments: message.comments })
-        setComments(reconcile(message.comments))
-      } else if (message.command === 'setTheme') {
-        setTheme(message.theme)
+      switch (message.command) {
+        case 'setComments':
+          window.vscode.setState({ comments: message.comments })
+          setComments(reconcile(message.comments))
+          break
+        case 'setTheme':
+          setTheme(message.theme)
+          break
+        case 'setBasePath':
+          setBasePath(message.basePath)
       }
     })
     window.vscode.postMessage({ command: 'initialize' })
   })
 
   const updateComment = (filePath: string, index: number, newComment: string) => {
-    setComments(filePath, index, 'source', newComment)
+    setComments(({ path }) => path === filePath, 'comments', index, 'source', newComment)
     window.vscode.postMessage({
       command: 'updateComment',
       data: { filePath, index, comment: newComment },
@@ -63,7 +69,6 @@ export default function App() {
           if (cmd) {
             setIsSearchAndReplaceOpened(true)
             const selection = window.getSelection()
-            console.log('selection is ', selection?.toString())
             setSearchQuery(selection?.toString() || '')
             searchInput.focus()
             searchInput.select()
@@ -86,26 +91,25 @@ export default function App() {
       <SearchAndReplace
         open={isSearchAndReplaceOpened()}
         comments={comments}
-        onClose={() => {
-          console.log('this happens?')
-          setIsSearchAndReplaceOpened(false)
-        }}
+        onClose={() => setIsSearchAndReplaceOpened(false)}
         onUpdate={updateComment}
         onMount={onSearchInputMount}
       />
       <div class={styles.comments}>
-        <For each={Object.keys(comments)}>
-          {(filePath) => (
+        <For each={comments}>
+          {(file) => (
             <div class={styles.file}>
-              <h1>{getNameFromPath(filePath)}</h1>
-              <Index each={comments[filePath]}>
+              <h1>
+                <BreadCrumbs breadcrumbs={file.relativePath.split('/')} />
+              </h1>
+              <Index each={file.comments}>
                 {(comment, index) => (
                   <CommentComponent
-                    id={`${getNameFromPath(filePath)}${index}`}
+                    id={`${getNameFromPath(file.relativePath)}${index}`}
                     theme={theme()}
                     comment={comment()}
-                    onUpdate={(value) => updateComment(filePath, index, value)}
-                    onOpenLine={() => openFileAtLine(filePath, comment().line)}
+                    onUpdate={(value) => updateComment(file.path, index, value)}
+                    onOpenLine={() => openFileAtLine(file.path, comment().line)}
                   />
                 )}
               </Index>

@@ -1,5 +1,5 @@
 {
-  "name": "vscode-jscode-editor",
+  "name": "vscode-jsdoc-editor",
   "author": "bigmistqke",
   "version": "0.1.0",
   "description": "",
@@ -7,20 +7,20 @@
     "vscode": "^1.23.0"
   },
   "activationEvents": [
-    "onCommand:jscode-editor.start"
+    "onCommand:jsdoc-editor.start"
   ],
   "main": "./build/extension/index.js",
   "contributes": {
     "commands": [
       {
-        "command": "jscode-editor.start",
+        "command": "jsdoc-editor.start",
         "title": "Open",
-        "category": "Jscode Editor"
+        "category": "Jsdoc Editor"
       },
       {
-        "command": "jscode-editor-dev.start",
+        "command": "jsdoc-editor-dev.start",
         "title": "Open (Dev)",
-        "category": "Jscode Editor"
+        "category": "Jsdoc Editor"
       }
     ]
   },

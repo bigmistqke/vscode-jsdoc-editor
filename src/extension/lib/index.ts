@@ -2,49 +2,54 @@ import { readFileSync } from 'fs'
 import { JSDOM } from 'jsdom'
 import * as path from 'path'
 import * as vscode from 'vscode'
-import { createContentSecurityPolicyString, getNonce } from './utils'
+import type { CSP } from './types'
+import { createCSPAttribute, getNonce } from './utils'
 
-export type DevConfig = {
-  location: string
-  port: string
-  entry: string
-}
-
-export function createActivate(callback: (panel: vscode.WebviewPanel) => void, devConfig: DevConfig) {
-  return function activate(context: vscode.ExtensionContext) {
-    const isDev = context.extensionMode === vscode.ExtensionMode.Development
-    if (isDev) {
-      createDevWebview(context, callback, devConfig)
-    }
-    createWebview(context, callback)
+export type Config = {
+  csp: CSP
+  dev: {
+    location: string
+    port: string
+    entry: string
+    csp?: CSP
   }
 }
 
-function createWebview(context: vscode.ExtensionContext, callback: (panel: vscode.WebviewPanel) => void) {
-  const webview = vscode.commands.registerCommand('jscode-editor.start', () => {
-    let panel = vscode.window.createWebviewPanel('webview', 'Jscode Editor', vscode.ViewColumn.One, {
+export function createActivate(callback: (panel: vscode.WebviewPanel) => void, config: Config) {
+  return function activate(context: vscode.ExtensionContext) {
+    const isDev = context.extensionMode === vscode.ExtensionMode.Development
+    if (isDev) {
+      createDevWebview(context, callback, config)
+    }
+    createWebview(context, callback, config)
+  }
+}
+
+function createWebview(
+  context: vscode.ExtensionContext,
+  callback: (panel: vscode.WebviewPanel) => void,
+  config: Config,
+) {
+  const webview = vscode.commands.registerCommand('jsdoc-editor.start', () => {
+    const panel = vscode.window.createWebviewPanel('webview', 'Jsdoc Editor', vscode.ViewColumn.One, {
       enableScripts: true,
     })
 
     const nonce = getNonce()
-    const contentSecurityPolicy = {
-      'img-src': `vscode-resource: https: http: data:`,
-      'script-src': `'nonce-${nonce}'`,
-      'style-src': `vscode-resource: 'unsafe-inline' http: https: data:`,
-    }
     const baseUri = panel.webview.asWebviewUri(vscode.Uri.file(path.join(context.extensionPath, 'build/')))
-
+    const csp = {
+      ...config.csp,
+      'script-src': [...(config.csp['script-src'] || []), `'nonce-${nonce}'`],
+    }
     const html = readFileSync(path.join(context.extensionPath, 'build', 'index.html'), 'utf8')
     const dom = createDom({
       html,
       nonce,
-      contentSecurityPolicy,
+      csp,
       basePath: baseUri as unknown as string,
     })
 
-    // // Serialize the document back to a string
     panel.webview.html = dom.serialize()
-
     callback(panel)
   })
   context.subscriptions.push(webview)
@@ -53,28 +58,32 @@ function createWebview(context: vscode.ExtensionContext, callback: (panel: vscod
 function createDevWebview(
   context: vscode.ExtensionContext,
   callback: (panel: vscode.WebviewPanel) => void,
-  dev: DevConfig,
+  config: Config,
 ) {
-  const webview = vscode.commands.registerCommand('jscode-editor-dev.start', () => {
-    const panel = vscode.window.createWebviewPanel('webview', 'Jscode Editor', vscode.ViewColumn.One, {
+  const webview = vscode.commands.registerCommand('jsdoc-editor-dev.start', () => {
+    const panel = vscode.window.createWebviewPanel('webview', 'Jsdoc Editor', vscode.ViewColumn.One, {
       enableScripts: true,
     })
 
     const nonce = getNonce()
-    const origin = `${dev.location}:${dev.port}`
-    const contentSecurityPolicy = {
-      'img-src': `vscode-resource: https: http: data:`,
-      'script-src': `* data: blob: 'unsafe-inline' 'unsafe-eval'; 
-      `,
-      'style-src': `vscode-resource: 'unsafe-inline' http: https: data:`,
-      'connect-src': `https://* http://${origin} http://0.0.0.0:${dev.port} ws://${origin} ws://0.0.0.0:${dev.port}`,
+    const origin = `${config.dev.location}:${config.dev.port}`
+    const configCsp = config.dev.csp || config.csp
+    const csp = {
+      ...configCsp,
+      'script-src': [...(configCsp['script-src'] || []), `'nonce-${nonce}'`],
+      'connect-src': [
+        ...(configCsp['connect-src'] || []),
+        `http://${origin}`,
+        `http://0.0.0.0:${config.dev.port}`,
+        `ws://${origin}`,
+        `ws://0.0.0.0:${config.dev.port}`,
+      ],
     }
-
     const html = readFileSync(path.join(context.extensionPath, 'index.html'), 'utf8')
     const dom = createDom({
       html,
       nonce,
-      contentSecurityPolicy,
+      csp,
       basePath: `http://${origin}`,
     })
     const document = dom.window.document
@@ -98,26 +107,16 @@ function createDevWebview(
     document.head.appendChild(loadLogScript)
 
     panel.webview.html = dom.serialize()
-
     callback(panel)
   })
   context.subscriptions.push(webview)
 }
 
-function createDom({
-  html,
-  nonce,
-  basePath,
-  contentSecurityPolicy,
-}: {
-  html: string
-  nonce: string
-  basePath: string
-  contentSecurityPolicy: Record<string, string>
-}) {
+function createDom({ html, nonce, basePath, csp }: { html: string; nonce: string; basePath: string; csp: CSP }) {
   // Parse the HTML string
   const dom = new JSDOM(html)
   const document = dom.window.document
+  const cspAttribute = createCSPAttribute(csp)
 
   // Add base tag to head
   const base = document.createElement('base')
@@ -129,7 +128,7 @@ function createDom({
   // Add the Content-Security-Policy meta tag to the head
   const meta = document.createElement('meta')
   meta.setAttribute('http-equiv', 'Content-Security-Policy')
-  meta.setAttribute('content', createContentSecurityPolicyString(contentSecurityPolicy))
+  meta.setAttribute('content', cspAttribute)
   document.head.appendChild(meta)
 
   return dom

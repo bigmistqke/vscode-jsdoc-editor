@@ -1,8 +1,4 @@
-export function createContentSecurityPolicyString(config: Record<string, string>) {
-  return Object.entries(config)
-    .map(([key, value]) => `${key} ${value};`)
-    .join(' ')
-}
+import type { CSP } from './types'
 
 /**
  * A helper function that returns a unique alphanumeric identifier called a nonce.
@@ -19,4 +15,19 @@ export function getNonce() {
     text += possible.charAt(Math.floor(Math.random() * possible.length))
   }
   return text
+}
+
+export function createCSPAttribute(config: CSP) {
+  return Object.entries(config)
+    .map(([key, value]) => {
+      if (Array.isArray(value)) {
+        return `${key} ${value.join(' ')};`
+      }
+      if (typeof value === 'boolean') {
+        return `${key};`
+      } else {
+        return `${key} ${value};`
+      }
+    })
+    .join(' ')
 }

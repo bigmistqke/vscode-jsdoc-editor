@@ -1,19 +1,24 @@
-import * as fs from 'fs'
-import * as ts from 'typescript'
 import * as vscode from 'vscode'
-import { DevConfig, createActivate } from './lib'
+import { extractComments } from './extract-comments'
+import { Config, createActivate } from './lib'
+import { File } from './types'
 
-export type Comment = { source: string; line: number; range: vscode.Range; target?: string; breadcrumbs: string[] }
-type CommentsByFile = Record<string, Comment[]>
-
-const devConfig: DevConfig = {
-  location: 'localhost',
-  port: '6969',
-  entry: 'src/webview/index.tsx',
+const config: Config = {
+  csp: {
+    'img-src': ['vscode-resource:', 'https:', 'http:', 'data:'],
+    'script-src': ['*', 'data:', 'blob:', `'unsafe-inline'`, `'unsafe-eval'`],
+    'style-src': [`vscode-resource:`, `'unsafe-inline'`, `http:`, `https:`, `data:`],
+    'connect-src': [`https://*`],
+  },
+  dev: {
+    location: 'localhost',
+    port: '6969',
+    entry: 'src/webview/index.tsx',
+  },
 }
 
 export const activate = createActivate((panel: vscode.WebviewPanel) => {
-  let comments: Record<string, Comment[]> = {} // Store comments grouped by file
+  let files: File[] = []
 
   panel.webview.onDidReceiveMessage(async (message: any) => {
     const command = message.command
@@ -21,13 +26,13 @@ export const activate = createActivate((panel: vscode.WebviewPanel) => {
 
     switch (command) {
       case 'initialize':
-        comments = await getJSDocCommentsFromWorkspace()
-        panel.webview.postMessage({ command: 'setComments', comments: comments })
+        files = await extractCommentsFromWorkspace()
+        panel.webview.postMessage({ command: 'setComments', comments: files })
         sendCurrentTheme()
         return
       case 'updateComment':
         await updateComment(data.filePath, data.index, data.comment)
-        panel.webview.postMessage({ command: 'setComments', comments: comments })
+        panel.webview.postMessage({ command: 'setComments', comments: files })
         return
       case 'openFileAtLine':
         await openFileAtLine(data.filePath, data.line)
@@ -38,7 +43,7 @@ export const activate = createActivate((panel: vscode.WebviewPanel) => {
       case 'dev:load':
         if (data.text === 'error') {
           vscode.window.showErrorMessage?.(
-            `Unable to connect to development server: http://${devConfig.location}:${devConfig.port}`,
+            `Unable to connect to development server: http://${config.dev.location}:${config.dev.port}`,
           )
         }
         return
@@ -61,24 +66,35 @@ export const activate = createActivate((panel: vscode.WebviewPanel) => {
   // Immediately load comments when the panel is created
   panel.webview.postMessage({ command: 'loadComments' })
 
-  async function getJSDocCommentsFromWorkspace(): Promise<CommentsByFile> {
-    const jsFiles = await vscode.workspace.findFiles(
-      '**/*.{js,jsx,ts,tsx}',
-      '{**/node_modules/**,**/dist/**,**/build/**}',
+  async function extractCommentsFromWorkspace(): Promise<File[]> {
+    return Promise.all(
+      await vscode.workspace
+        .findFiles('**/*.{js,jsx,ts,tsx}', '{**/node_modules/**,**/dist/**,**/build/**}')
+        .then((files) =>
+          files.map(async (file) => ({
+            comments: extractComments(await vscode.workspace.openTextDocument(file)),
+            path: file.fsPath,
+            relativePath: vscode.workspace.asRelativePath(file.fsPath),
+          })),
+        ),
     )
-    let commentsByFile: CommentsByFile = {}
-
-    for (const file of jsFiles) {
-      const document = await vscode.workspace.openTextDocument(file)
-
-      commentsByFile[file.fsPath] = extractJSDocWithBreadcrumbs(file.fsPath)
-    }
-
-    return commentsByFile
   }
 
   async function updateComment(filePath: string, index: number, newComment: string) {
-    const comment = comments[filePath][index]
+    const file = files.find(({ path }) => path === filePath)
+
+    if (!file) {
+      console.error('file is undefined', filePath)
+      return
+    }
+
+    const comment = file.comments[index]
+
+    if (!comment) {
+      console.error('comment is undefined')
+      return
+    }
+
     const fileUri = vscode.Uri.file(filePath)
     const document = await vscode.workspace.openTextDocument(fileUri)
 
@@ -88,8 +104,7 @@ export const activate = createActivate((panel: vscode.WebviewPanel) => {
     await document.save()
 
     // Recalculate all ranges for the comments in the updated file
-    const updatedComments = await extractJSDocWithBreadcrumbs(document.uri.fsPath)
-    comments[filePath] = updatedComments
+    file.comments = extractComments(document)
   }
 
   async function openFileAtLine(filePath: string, line: number) {
@@ -105,113 +120,4 @@ export const activate = createActivate((panel: vscode.WebviewPanel) => {
     editor.selection = selection
     editor.revealRange(selection, vscode.TextEditorRevealType.InCenter)
   }
-}, devConfig)
-
-// Function to extract JSDoc comments and breadcrumbs
-function extractJSDocWithBreadcrumbs(fileName: string): Comment[] {
-  // Read the file content
-  const fileContent = fs.readFileSync(fileName, 'utf8')
-
-  // Create a source file (AST)
-  const sourceFile = ts.createSourceFile(fileName, fileContent, ts.ScriptTarget.Latest, true)
-
-  const commentsWithBreadcrumbs: Comment[] = []
-
-  const nodes = new Set<ts.Node>()
-
-  // Helper function to add breadcrumbs
-  function addBreadcrumbs(node: ts.Node, path: string[] = []): void {
-    if (nodes.has(node)) return
-    nodes.add(node)
-
-    let name: string | undefined
-
-    if (ts.isVariableStatement(node)) {
-      node.declarationList.declarations.forEach((declaration) => {
-        if (declaration.name && ts.isVariableDeclaration(declaration) && ts.isIdentifier(declaration.name)) {
-          addBreadcrumbs(declaration, path)
-        }
-      })
-      return
-    } else if (
-      'name' in node &&
-      node.name &&
-      (ts.isIdentifier(node.name as ts.Node) || ts.isPrivateIdentifier(node.name as ts.Node))
-    ) {
-      name = (node.name as ts.Identifier).getText()
-    }
-
-    if (name) {
-      path = [...path, name]
-    }
-
-    // Handling jsDoc Nodes
-    if ('jsDoc' in node && node.jsDoc) {
-      ;(node.jsDoc as any[]).forEach((jsDoc) => {
-        const start = jsDoc.getStart()
-        const end = jsDoc.getEnd()
-        const startLineChar = sourceFile.getLineAndCharacterOfPosition(start)
-        const endLineChar = sourceFile.getLineAndCharacterOfPosition(end)
-        const breadcrumb = [...path]
-        commentsWithBreadcrumbs.push({
-          source: jsDoc.getText(),
-          line: startLineChar.line + 1, // Lines are 0-based in TypeScript, converting to 1-based
-          range: new vscode.Range(
-            new vscode.Position(startLineChar.line, startLineChar.character),
-            new vscode.Position(endLineChar.line, endLineChar.character),
-          ),
-          breadcrumbs: breadcrumb,
-        })
-      })
-    }
-
-    // Handling Nested Structures
-    if (
-      ts.isTypeLiteralNode(node) ||
-      ts.isInterfaceDeclaration(node) ||
-      ts.isTypeAliasDeclaration(node) ||
-      ts.isObjectLiteralExpression(node) ||
-      ts.isClassDeclaration(node) ||
-      ts.isMethodDeclaration(node) ||
-      ts.isConstructorDeclaration(node)
-    ) {
-      node.forEachChild((member) => {
-        if (
-          ts.isPropertySignature(member) ||
-          ts.isPropertyAssignment(member) ||
-          ts.isMethodDeclaration(member) ||
-          ts.isConstructorDeclaration(member) ||
-          ts.isGetAccessorDeclaration(member) ||
-          ts.isSetAccessorDeclaration(member) ||
-          ts.isParameter(member)
-        ) {
-          if (ts.isConstructorDeclaration(member)) {
-            addBreadcrumbs(member, [...path, 'Constructor'])
-          } else {
-            addBreadcrumbs(member, path)
-          }
-
-          if (ts.isMethodDeclaration(member) || ts.isConstructorDeclaration(member)) {
-            member.parameters.forEach((parameter) => {
-              if (ts.isIdentifier(parameter.name)) {
-                const parameterName = parameter.name.getText()
-                addBreadcrumbs(parameter, [...path, parameterName])
-              }
-            })
-          }
-        } else {
-          addBreadcrumbs(member, path) // Preserve path for non-named members
-        }
-      })
-    } else {
-      ts.forEachChild(node, (childNode) => {
-        addBreadcrumbs(childNode, path)
-      })
-    }
-  }
-
-  // Start the breadcrumb addition process
-  addBreadcrumbs(sourceFile)
-
-  return commentsWithBreadcrumbs
-}
+}, config)

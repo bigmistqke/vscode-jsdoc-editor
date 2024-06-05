@@ -1,0 +1,86 @@
+.comment {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  contain: layout;
+  padding: 0px 20px;
+
+  & .header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 5px;
+    font-size: 10pt;
+
+    & button {
+      font-size: 8pt;
+    }
+
+    & h2 {
+      all: unset;
+      display: flex;
+      flex: 1;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 5px;
+      overflow: hidden;
+      color: white;
+      font-size: 10pt;
+      line-height: 10pt;
+
+      & .target {
+        background: transparent;
+        overflow: hidden;
+        color: white;
+      }
+    }
+  }
+
+  & .textareaContainer {
+    display: flex;
+    flex-direction: column;
+
+    &:has(.error) .textarea {
+      border-bottom-right-radius: 0px;
+      border-bottom-left-radius: 0px;
+    }
+
+    & .textarea {
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+
+      &:focus-within {
+        border: 1px solid var(--border-color-active);
+        background: var(--textarea-color-focus);
+      }
+      &:hover:not(:focus-within) {
+        border: 1px solid var(--border-color-hover);
+      }
+
+      & code {
+        background-color: unset;
+        padding: unset;
+      }
+    }
+
+    & .error {
+      border-bottom-right-radius: 5px;
+      border-bottom-left-radius: 5px;
+      background: rgb(244, 74, 74);
+      padding: 5px;
+      color: white;
+    }
+
+    & .highlight {
+      display: block;
+      position: absolute !important;
+      position: relative;
+      top: 0px;
+      z-index: 0;
+      pointer-events: none;
+      color: transparent;
+      font-family: monospace;
+      white-space: pre;
+    }
+  }
+}

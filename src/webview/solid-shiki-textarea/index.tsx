@@ -43,21 +43,22 @@ const calculateMaxCharCount = (source: string) => {
 
 /** A textarea with syntax highlighting capabilities powered by [shiki](https://github.com/shikijs/shiki). */
 export function ShikiTextarea(
-  props: Omit<ComponentProps<'div'>, 'style' | 'onInput' | 'children'> & {
-    /** Custom CSS properties to apply to the editor. */
-    style?: JSX.CSSProperties
-    /** The source code to be displayed and edited. */
-    value: string
-    /** The default source code to initialize the editor with. */
-    defaultValue?: string
-    /** The theme to apply for syntax highlighting. */
-    theme?: Theme
-    /** Callback function to handle updates to the source code. */
-    onInput?: (source: string) => void
-    /** The programming language of the source code for syntax highlighting. */
-    lang?: string
-    children?: (source: Accessor<string>, styles: Record<string, string>) => JSX.Element
-  },
+  props: Omit<ComponentProps<'div'>, 'style' | 'onInput' | 'children' | 'onFocus' | 'onBlur'> &
+    Pick<ComponentProps<'textarea'>, 'onFocus' | 'onBlur'> & {
+      /** Custom CSS properties to apply to the editor. */
+      style?: JSX.CSSProperties
+      /** The source code to be displayed and edited. */
+      value: string
+      /** The default source code to initialize the editor with. */
+      defaultValue?: string
+      /** The theme to apply for syntax highlighting. */
+      theme?: Theme
+      /** Callback function to handle updates to the source code. */
+      onInput?: (source: string) => void
+      /** The programming language of the source code for syntax highlighting. */
+      lang?: string
+      children?: (source: Accessor<string>, styles: Record<string, string>) => JSX.Element
+    },
 ) {
   const [config, rest] = processProps(props, { lang: 'tsx', theme: 'min-light' }, [
     'class',
@@ -68,6 +69,7 @@ export function ShikiTextarea(
     'style',
     'theme',
     'onBlur',
+    'onFocus',
   ])
   const [source, setSource] = createSignal(config.defaultValue || config.value)
   const [characterDimensions, setCharacterDimensions] = createSignal<Dimensions>({
@@ -136,6 +138,7 @@ export function ShikiTextarea(
             })
           }}
           onBlur={config.onBlur}
+          onFocus={config.onFocus}
           value={config.value}
         />
         {props.children?.(source, styles)}

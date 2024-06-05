@@ -23,8 +23,8 @@
 
   & button {
     cursor: pointer;
-    &.active {
-      background: var(--button-color-hover);
+    &:global(.active) {
+      background: var(--button-color-active) !important;
     }
     &:not(.typoButton):hover {
       background: var(--button-color-hover);
@@ -43,8 +43,11 @@
   & h1 {
     word-wrap: break-word;
     all: unset;
+    display: flex;
     position: sticky;
     top: 0px;
+    flex-wrap: wrap;
+    align-items: center;
     z-index: 1;
     border-bottom: 1px solid var(--border-color);
     background-color: var(--background-color);
@@ -56,159 +59,5 @@
     display: flex;
     flex-direction: column;
     gap: 20px;
-  }
-
-  & .comment {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    contain: layout;
-    padding: 0px 20px;
-
-    & .header {
-      display: flex;
-      align-items: baseline;
-      gap: 5px;
-      font-size: 10pt;
-
-      & button {
-        font-size: 8pt;
-      }
-
-      & h2 {
-        all: unset;
-        display: flex;
-        flex: 1;
-        align-items: center;
-        gap: 5px;
-        overflow: hidden;
-        color: white;
-        font-size: 10pt;
-
-        & .target {
-          background: transparent;
-          overflow: hidden;
-          color: white;
-        }
-      }
-    }
-
-    & .textareaContainer {
-      display: flex;
-      flex-direction: column;
-
-      &:has(.error) .textarea {
-        border-bottom-right-radius: 0px;
-        border-bottom-left-radius: 0px;
-      }
-
-      & .textarea {
-        border: 1px solid var(--border-color);
-        border-radius: 5px;
-
-        &:focus-within {
-          border: 1px solid var(--border-color-active);
-          background: var(--textarea-color-focus);
-        }
-        &:hover:not(:focus-within) {
-          border: 1px solid var(--border-color-hover);
-        }
-
-        & code {
-          background-color: unset;
-          padding: unset;
-        }
-      }
-
-      & .error {
-        border-bottom-right-radius: 5px;
-        border-bottom-left-radius: 5px;
-        background: rgb(244, 74, 74);
-        padding: 5px;
-        color: white;
-      }
-
-      & .highlight {
-        display: block;
-        position: absolute !important;
-        position: relative;
-        top: 0px;
-        z-index: 0;
-        pointer-events: none;
-        color: transparent;
-        font-family: monospace;
-        white-space: pre;
-      }
-    }
-  }
-}
-
-.searchAndReplace {
-  display: grid;
-  position: absolute;
-  right: 50px;
-  grid-template-columns: 1fr 150px;
-  justify-content: center;
-  align-items: center;
-  gap: 10px;
-  z-index: 10;
-  transition: transform 0.25s;
-  box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.5);
-  border: 1px solid var(--border-color);
-  border-top: none;
-  border-bottom-right-radius: 10px;
-  border-bottom-left-radius: 10px;
-  background-color: var(--background-color);
-  padding: 10px;
-  width: 400px;
-
-  &:not(.open) {
-    transform: translateY(-100%);
-  }
-
-  & .searchContainer {
-    display: flex;
-    position: relative;
-    flex: 1;
-
-    & input {
-      flex: 1;
-    }
-
-    & .searchIcons {
-      display: flex;
-      position: absolute;
-      top: 0px;
-      right: 0px;
-      justify-content: center;
-      align-items: center;
-      gap: 5px;
-      padding-right: 4px;
-      height: 100%;
-
-      & button {
-        padding: 2.5px 5px;
-      }
-    }
-  }
-
-  & .count {
-    width: 75px;
-  }
-
-  & .typoButton {
-    outline: none;
-    padding: 0px;
-    color: var(--border-color);
-    font-size: 12pt;
-    &:focus,
-    &:hover {
-      color: white;
-    }
-  }
-
-  & .row {
-    display: flex;
-    gap: 5px;
   }
 }
