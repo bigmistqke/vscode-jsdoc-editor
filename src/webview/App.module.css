@@ -12,11 +12,11 @@
     background-color: transparent;
     padding: 5px 10px;
     color: white;
-    &:not(.typoButton):focus {
+    &:focus {
       outline: 1px solid var(--border-color-active);
       background: var(--button-color-focus);
     }
-    &:not(.typoButton):hover:not(:focus) {
+    &:hover:not(:focus) {
       outline: 1px solid var(--border-color-hover);
     }
   }
@@ -26,7 +26,7 @@
     &:global(.active) {
       background: var(--button-color-active) !important;
     }
-    &:not(.typoButton):hover {
+    &:hover {
       background: var(--button-color-hover);
     }
   }

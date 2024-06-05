@@ -52,12 +52,13 @@
   }
 
   & .typoButton {
-    outline: none;
+    outline: none !important;
     padding: 0px;
     color: var(--border-color);
     font-size: 12pt;
     &:focus,
     &:hover {
+      outline: none !important;
       color: white;
     }
   }

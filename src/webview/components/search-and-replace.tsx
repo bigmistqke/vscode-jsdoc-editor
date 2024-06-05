@@ -161,12 +161,12 @@ export function SearchAndReplace(props: {
       ?.source
 
     if (!originalSource) {
-      console.error('Can not find source', props.comments, filePath)
+      console.error('Can not find source', props.comments, match.filePath)
       return
     }
 
     const source = spliceString(originalSource, match.start, match.end - match.start, replaceQuery())
-    props.onUpdate(match.filePath, matchIndex(), source)
+    props.onUpdate(match.filePath, match.index, source)
   }
 
   function replaceAll() {
@@ -218,6 +218,16 @@ export function SearchAndReplace(props: {
           const sub = e.shiftKey
           if (sub) searchPrevious()
           else searchNext()
+        }
+        break
+      case 'ArrowDown':
+      case 'ArrowUp':
+        if (e.target === searchInput || searchIcons.contains(e.target as HTMLElement)) {
+          replaceInput.focus()
+          replaceInput.select()
+        } else if (e.target === replaceInput) {
+          searchInput.focus()
+          searchInput.select()
         }
         break
       case 'Escape':
