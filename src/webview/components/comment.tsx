@@ -1,7 +1,13 @@
 import { parse } from 'comment-parser'
-import { Show, createEffect, createSignal } from 'solid-js'
-import { ShikiTextarea } from '~/solid-shiki-textarea'
-import { type Comment } from '~/types'
+import { codeToHast, getHighlighter } from 'shiki/index.mjs'
+import { Show, createEffect, createMemo, createResource, createSignal } from 'solid-js'
+import { HastTextarea } from '~/hast-textarea'
+import { defaultProps } from '~/hast-textarea/utils/process-props'
+import { calculateContrastingColor } from '~/solid-shiki-textarea/utils/calculate-contrasting-color'
+import { cleanComment } from '~/utils/clean-comment'
+import { formatHastToMatchText } from '~/utils/format-hast-to-match-text'
+import { isSingleLine } from '~/utils/is-single-line'
+import { type Comment } from '~extension/types'
 import { BreadCrumbs } from './breadcrumbs'
 import styles from './comment.module.css'
 
@@ -16,8 +22,35 @@ export function Comment(props: {
   onUpdate: (value: string) => void
   onOpenLine: () => void
 }) {
-  const [source, setSource] = createSignal(props.comment.source)
+  const config = defaultProps(props, {
+    theme: 'min-light',
+  })
+  const theme = () => config.theme?.toLowerCase()
+
   const [error, setError] = createSignal<string>()
+  const [currentComment, setCurrentComment] = createSignal<string>(config.comment.source)
+  createEffect(() => setCurrentComment(config.comment.source))
+
+  const cleanedComment = createMemo(() => cleanComment(currentComment()))
+  // Get styles from current theme
+  const [themeStyles] = createResource(theme, (theme) =>
+    getHighlighter({ themes: [theme], langs: ['tsx'] })
+      .then((highlighter) => highlighter.getTheme(theme))
+      .then((theme) => ({
+        '--theme-selection-color': calculateContrastingColor(theme.bg),
+        '--theme-background-color': theme.bg,
+        '--theme-foreground-color': theme.fg,
+      })),
+  )
+
+  // Transform source to hast (hypertext abstract syntax tree)
+  const [hast] = createResource(
+    () => [currentComment(), cleanedComment(), theme()] as const,
+    async ([currentComment, cleanedComment, theme]) => {
+      const hast = await codeToHast(currentComment, { lang: 'tsx', theme })
+      return await (currentComment ? formatHastToMatchText(hast, cleanedComment) : undefined)
+    },
+  )
 
   function validateComment(comment: string): boolean {
     try {
@@ -28,21 +61,29 @@ export function Comment(props: {
     }
   }
 
-  createEffect(() => setSource(props.comment.source))
-
-  let valueBeforeFocus: string
-  function onFocus() {
-    valueBeforeFocus = source()
-  }
-
+  let commentBeforeFocus = ''
   function onBlur() {
-    const value = source()
-    if (valueBeforeFocus === value) return
-    if (validateComment(value)) {
-      props.onUpdate(value)
+    const comment = currentComment()
+    if (commentBeforeFocus === comment) return
+    if (validateComment(comment)) {
+      config.onUpdate(comment)
       setError(undefined)
     } else {
       setError('Invalid JSDoc comment')
+    }
+  }
+
+  function onInput(comment: string) {
+    const lines = comment.split('\n')
+    if (isSingleLine(currentComment())) {
+      setCurrentComment(`/** ${lines[0]} */`)
+    } else {
+      setCurrentComment(`/** 
+${comment
+  .split('\n')
+  .map((line) => `${config.comment.indentation} * ${line}`)
+  .join('\n')}
+${config.comment.indentation} */`)
     }
   }
 
@@ -50,22 +91,27 @@ export function Comment(props: {
     <div class={styles.comment}>
       <div class={styles.header}>
         <h2>
-          <BreadCrumbs breadcrumbs={props.comment.breadcrumbs} />
+          <BreadCrumbs breadcrumbs={config.comment.breadcrumbs} />
         </h2>
-        <button onClick={props.onOpenLine}>Go to Line {props.comment.line}</button>
+        <button onClick={config.onOpenLine}>Go to Line {config.comment.line}</button>
       </div>
       <div class={styles.textareaContainer}>
-        <ShikiTextarea
-          id={props.id}
-          theme={props.theme?.toLowerCase()}
-          class={styles.textarea}
-          style={{ padding: '10px' }}
-          value={source()}
-          onInput={setSource}
-          onFocus={onFocus}
-          onBlur={onBlur}>
-          {(source) => <code class={styles.highlight}>{source()}</code>}
-        </ShikiTextarea>
+        <Show when={hast() || hast.latest}>
+          {(hast) => (
+            <HastTextarea
+              class={styles.textarea}
+              hast={hast().children[0].children[0]}
+              id={config.id}
+              onBlur={onBlur}
+              onFocus={() => (commentBeforeFocus = currentComment())}
+              onInput={onInput}
+              overlay={<code class={styles.highlight}>{cleanedComment()}</code>}
+              style={{ ...themeStyles(), padding: '10px' }}
+              theme={config.theme?.toLowerCase()}
+              value={cleanedComment()}
+            />
+          )}
+        </Show>
         <Show when={error()}>{(error) => <div class={styles.error}>{error()}</div>}</Show>
       </div>
     </div>

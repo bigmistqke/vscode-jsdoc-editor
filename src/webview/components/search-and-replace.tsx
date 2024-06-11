@@ -144,40 +144,43 @@ export function SearchAndReplace(props: {
 
   // Highlight current match
   createEffect(
-    on(matches, (matches) => {
-      const match = matches[currentMatchIndex()]
+    on(
+      () => [matches(), currentMatchIndex()] as const,
+      ([matches, currentMatchIndex]) => {
+        const match = matches[currentMatchIndex]
 
-      if (!match) {
-        highlights.currentMatch.clear()
-        return
-      }
-
-      queueMicrotask(() => {
-        const container = document.getElementById(match.id)
-        const code = getHighlightElement(match.id)
-        const textNode = code?.firstChild
-
-        if (container && textNode) {
-          const range = new Range()
-          range.setStart(textNode, match.start)
-          range.setEnd(textNode, match.end)
-
-          const { left } = range.getBoundingClientRect()
-
-          if (left + container.scrollLeft > container.offsetWidth + container.scrollLeft) {
-            container.scrollLeft = left - container.offsetWidth / 2
-          }
-
-          if (left + container.scrollLeft < container.scrollLeft) {
-            container.scrollLeft = left - container.offsetWidth / 2
-          }
-
-          highlights.currentMatch = new Highlight(range)
-          CSS.highlights.set('current-match', highlights.currentMatch)
-          code.scrollIntoView({ block: 'center' })
+        if (!match) {
+          highlights.currentMatch.clear()
+          return
         }
-      })
-    }),
+
+        queueMicrotask(() => {
+          const container = document.getElementById(match.id)
+          const code = getHighlightElement(match.id)
+          const textNode = code?.firstChild
+
+          if (container && textNode) {
+            const range = new Range()
+            range.setStart(textNode, match.start)
+            range.setEnd(textNode, match.end)
+
+            const { left } = range.getBoundingClientRect()
+
+            if (left + container.scrollLeft > container.offsetWidth + container.scrollLeft) {
+              container.scrollLeft = left - container.offsetWidth / 2
+            }
+
+            if (left + container.scrollLeft < container.scrollLeft) {
+              container.scrollLeft = left - container.offsetWidth / 2
+            }
+
+            highlights.currentMatch = new Highlight(range)
+            CSS.highlights.set('current-match', highlights.currentMatch)
+            code.scrollIntoView({ block: 'center' })
+          }
+        })
+      },
+    ),
   )
 
   // Highlight all matches
