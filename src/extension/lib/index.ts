@@ -15,7 +15,10 @@ export type Config = {
   }
 }
 
-export function createActivate(callback: (panel: vscode.WebviewPanel) => void, config: Config) {
+export function createActivate(
+  callback: (panel: vscode.WebviewPanel, context: vscode.ExtensionContext) => void,
+  config: Config,
+) {
   return function activate(context: vscode.ExtensionContext) {
     const isDev = context.extensionMode === vscode.ExtensionMode.Development
     if (isDev) {
@@ -27,7 +30,7 @@ export function createActivate(callback: (panel: vscode.WebviewPanel) => void, c
 
 function createWebview(
   context: vscode.ExtensionContext,
-  callback: (panel: vscode.WebviewPanel) => void,
+  callback: (panel: vscode.WebviewPanel, context: vscode.ExtensionContext) => void,
   config: Config,
 ) {
   const webview = vscode.commands.registerCommand('jsdoc-editor.start', () => {
@@ -50,14 +53,14 @@ function createWebview(
     })
 
     panel.webview.html = dom.serialize()
-    callback(panel)
+    callback(panel, context)
   })
   context.subscriptions.push(webview)
 }
 
 function createDevWebview(
   context: vscode.ExtensionContext,
-  callback: (panel: vscode.WebviewPanel) => void,
+  callback: (panel: vscode.WebviewPanel, context: vscode.ExtensionContext) => void,
   config: Config,
 ) {
   const webview = vscode.commands.registerCommand('jsdoc-editor-dev.start', () => {
@@ -107,7 +110,7 @@ function createDevWebview(
     document.head.appendChild(loadLogScript)
 
     panel.webview.html = dom.serialize()
-    callback(panel)
+    callback(panel, context)
   })
   context.subscriptions.push(webview)
 }

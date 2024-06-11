@@ -8,7 +8,11 @@ export type Comment = {
   breadcrumbs: string[]
   indentation: string
 }
-export type File = { path: string; relativePath: string; comments: Comment[] }
+export type File = {
+  path: string
+  relativePath: string
+  comments: Comment[]
+}
 export type Files = File[]
 
 export type RegexConfig = { query: string; isRegex: boolean; isWholeWord: boolean; isCaseSensitive: boolean }

@@ -18,8 +18,6 @@ interface TextNode extends Literal {
 
 // Function to format the HAST tree to match the target text
 export function formatHastToMatchText(tree: any, target: string): any {
-  console.log('Formatting HAST tree to match text')
-
   // Collect all text nodes from the HAST tree
   const textNodes: { node: TextNode; parent: ElementNode }[] = []
   // Gather all text nodes
@@ -55,12 +53,9 @@ export function formatHastToMatchText(tree: any, target: string): any {
         targetIndex++
       }
     }
-    console.log('newTextContent', newTextContent)
     // Update the text node with the new content
     node.value = newTextContent
   }
-
-  console.log('tree', tree)
 
   return tree // Return the modified HAST tree
 }

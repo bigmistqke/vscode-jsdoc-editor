@@ -71,9 +71,10 @@ function segmentCommentForCleaning(comment: string) {
 }
 
 /**
- * Cleans a JSDoc comment by segmenting it into parts, processing each line,
- * and then joining them back together. Handles both single-line and multi-line
- * JSDoc comments.
+ * Cleans a JSDoc comment by segmenting it into parts,
+ * removing jsdoc markers from each line, and then joining them back together.
+ *
+ * Handles both single-line and multi-line JSDoc comments.
  *
  * @param comment - The JSDoc comment string to be cleaned.
  * @returns - The cleaned JSDoc comment.
@@ -91,7 +92,7 @@ export function cleanComment(comment: string) {
     })
     .filter((line, index, array) => {
       if (index === 0 || index === array.length - 1) {
-        return line
+        return line !== undefined
       }
       return true
     })

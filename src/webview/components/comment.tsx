@@ -75,7 +75,7 @@ export function Comment(props: {
 
   function onInput(comment: string) {
     const lines = comment.split('\n')
-    if (isSingleLine(currentComment())) {
+    if (isSingleLine(comment)) {
       setCurrentComment(`/** ${lines[0]} */`)
     } else {
       setCurrentComment(`/** 
