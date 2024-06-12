@@ -96,22 +96,18 @@ ${config.comment.indentation} */`)
         <button onClick={config.onOpenLine}>Go to Line {config.comment.line}</button>
       </div>
       <div class={styles.textareaContainer}>
-        <Show when={hast() || hast.latest}>
-          {(hast) => (
-            <HastTextarea
-              class={styles.textarea}
-              hast={hast().children[0].children[0]}
-              id={config.id}
-              onBlur={onBlur}
-              onFocus={() => (commentBeforeFocus = currentComment())}
-              onInput={onInput}
-              overlay={<code class={styles.highlight}>{cleanedComment()}</code>}
-              style={{ ...themeStyles(), padding: '10px' }}
-              theme={config.theme?.toLowerCase()}
-              value={cleanedComment()}
-            />
-          )}
-        </Show>
+        <HastTextarea
+          class={styles.textarea}
+          hast={(hast() || hast.latest)?.children?.[0]?.children[0]}
+          id={config.id}
+          onBlur={onBlur}
+          onFocus={() => (commentBeforeFocus = currentComment())}
+          onInput={onInput}
+          overlay={<code class={styles.highlight}>{cleanedComment()}</code>}
+          style={{ ...themeStyles(), padding: '10px' }}
+          theme={config.theme?.toLowerCase()}
+          value={cleanedComment()}
+        />
         <Show when={error()}>{(error) => <div class={styles.error}>{error()}</div>}</Show>
       </div>
     </div>

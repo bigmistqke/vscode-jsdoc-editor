@@ -11,34 +11,42 @@
   position: relative;
   flex: 1;
   min-width: calc(var(--max-char-count) * var(--char-width) * 1px);
-  min-height: calc(var(--line-count) * var(--char-height) * 1px);
+  height: calc(var(--line-count) * var(--char-height) * 1px);
 }
 
 .editor .container .shiki {
-  display: block;
-  position: relative;
-  z-index: 2;
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  bottom: 0px;
+  left: 0px;
+
   pointer-events: none;
   font-family: monospace;
   white-space: pre;
 }
 
 .editor .container .textarea {
-  position: absolute;
-  top: 0px;
-  right: 0px;
-  bottom: 0px;
-  left: 0px;
+  display: block;
+  position: relative;
+  z-index: 2;
+  transition: color 0.33s;
   outline: none;
   border: none;
   background: transparent;
   padding: 0px;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
   resize: none;
-  /* color: transparent; */
+  color: white;
   font-size: inherit;
   font-family: monospace;
   text-align: inherit;
+
+  &.hasHast {
+    color: transparent;
+  }
 }
 
 .editor .container .textarea::selection {

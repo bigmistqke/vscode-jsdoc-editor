@@ -42,7 +42,7 @@ const calculateMaxCharCount = (source: string) => {
 export function HastTextarea(
   props: Omit<ComponentProps<'div'>, 'style' | 'onInput' | 'children' | 'onFocus' | 'onBlur'> &
     Pick<ComponentProps<'textarea'>, 'onFocus' | 'onBlur'> & {
-      hast: Parent
+      hast?: Parent
       lineCount?: number
       /** Custom CSS properties to apply to the editor. */
       style?: JSX.CSSProperties
@@ -94,14 +94,11 @@ export function HastTextarea(
       }}
       {...rest}>
       <div class={styles.container}>
-        <code class={styles.shiki}>
-          <List each={props.hast.children}>{(line) => <HastNode node={line()} />}</List>
-        </code>
         <textarea
           inputmode="none"
           autocomplete="off"
           spellcheck={false}
-          class={styles.textarea}
+          class={clsx(styles.textarea, props.hast && styles.hasHast)}
           onInput={({ currentTarget: { value } }) => {
             // Update source with startTransition so Suspense is not triggered.
             startTransition(() => config.onInput?.(value))
@@ -110,6 +107,9 @@ export function HastTextarea(
           onFocus={config.onFocus}
           value={source()}
         />
+        <code class={styles.shiki}>
+          <List each={props.hast?.children}>{(line) => <HastNode node={line()} />}</List>
+        </code>
         {props.overlay}
         <CharacterDimensions onResize={setCharacterDimensions} />
       </div>
