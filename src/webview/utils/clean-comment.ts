@@ -1,3 +1,7 @@
+function trimAsterisks(str: string) {
+  return str.replace(/^\*+|\*+$/g, '')
+}
+
 /**
  * Segments a JSDoc comment into its constituent parts for cleaning.
  * Handles both single-line and multi-line JSDoc comments, extracting
@@ -22,7 +26,7 @@ function segmentCommentForCleaning(comment: string) {
     // If a single-line comment is found, parse it and return
     if (singleLineMatch) {
       // Extract the content between /** and */
-      return [['/** ', singleLineMatch[1].trim(), ' */']]
+      return [['/** ', trimAsterisks(singleLineMatch[1].trim()), ' */']]
     }
   }
 
@@ -37,7 +41,7 @@ function segmentCommentForCleaning(comment: string) {
   // Regex: /^(.*)\*\/$/
   // - ^(.*) : Capture any content at the start of the line
   // - \*\/$ : Match the end of a multi-line JSDoc comment (*/)
-  const isEndOfComment = /^(.*)\*\/$/
+  const isEndOfComment = /^(.*)\**\*\/$/
 
   // Map each line to its parsed form
   const parsedArray = lines.map((line) => {
@@ -49,7 +53,12 @@ function segmentCommentForCleaning(comment: string) {
       return match?.length && match[1] ? ['/**', match[1].trim()] : ['/**']
     } else if (isEndOfComment.test(trimmedLine)) {
       const match = trimmedLine.match(isEndOfComment)
-      return match?.length && match[1] ? [match[1].trim(), '*/'] : ['*/']
+      if (!match?.length || match[1]) {
+        return ['*/']
+      }
+      const content = trimAsterisks(match[1].trim())
+      if (!content) return ['*/']
+      return [content, '*/']
     } else {
       //  Target: Lines within a multi-line JSDoc comment ` * `
       //  Regex: /^(\s*\*\s?)(.*)$/
@@ -59,10 +68,10 @@ function segmentCommentForCleaning(comment: string) {
       const match = line.match(/^(\s*\*\s?)(.*)$/)
       if (match) {
         // If the line matches the pattern, return the parts as an array
-        return [match[1], match[2]]
+        return [match[1], trimAsterisks(match[2])]
       } else {
         // Lines without asterisks should keep their leading whitespace intact
-        return ['', line]
+        return ['', trimAsterisks(line)]
       }
     }
   })

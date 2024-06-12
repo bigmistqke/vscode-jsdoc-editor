@@ -18,8 +18,21 @@ const config: Config = {
   },
 }
 
+const CACHE_KEY = 'jsdoooc'
+
 export const activate = createActivate((panel: vscode.WebviewPanel, context: vscode.ExtensionContext) => {
-  let comments: File[] = []
+  let files: File[] = []
+
+  // Function to send the comments to the webviez
+  function sendComments() {
+    panel.webview.postMessage({ command: 'setFiles', files })
+  }
+
+  // Function to send the current theme to the webview
+  function sendCurrentTheme() {
+    const theme = vscode.workspace.getConfiguration().get<string>('workbench.colorTheme')
+    panel.webview.postMessage({ command: 'setTheme', theme })
+  }
 
   panel.webview.onDidReceiveMessage(async (message: any) => {
     const command = message.command
@@ -27,17 +40,15 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
 
     switch (command) {
       case 'initialize':
-        comments = await extractCommentsFromWorkspace()
-        panel.webview.postMessage({ command: 'setComments', comments })
+        files = await extractCommentsFromWorkspace()
+        sendComments()
         sendCurrentTheme()
         return
       case 'update':
         await updateComment(data.filePath, data.index, data.comment)
-        panel.webview.postMessage({ command: 'setComments', comments })
         return
       case 'updateAll':
         await updateAll(data)
-        panel.webview.postMessage({ command: 'setComments', comments })
         return
       case 'openFileAtLine':
         await openFileAtLine(data.filePath, data.line)
@@ -55,12 +66,6 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
     }
   })
 
-  // Function to send the current theme to the webview
-  function sendCurrentTheme() {
-    const theme = vscode.workspace.getConfiguration().get<string>('workbench.colorTheme')
-    panel.webview.postMessage({ command: 'setTheme', theme })
-  }
-
   // Listen to configuration changes to detect theme changes
   const themeDocumentChangeHandler = vscode.workspace.onDidChangeConfiguration((event) => {
     if (event.affectsConfiguration('workbench.colorTheme')) {
@@ -75,19 +80,21 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
 
   // Watch for changes in the currently opened text documents
   const textDocumentSaveHandler = vscode.workspace.onDidSaveTextDocument(async (document) => {
-    const file = comments.find(({ path }) => path === document.uri.fsPath)
-
+    const file = files.find(({ path }) => path === document.uri.fsPath)
+    const modified = await getModfiedDocument(document)
     if (file) {
       file.comments = extractComments(document)
-      panel.webview.postMessage({ command: 'setComments', comments })
+      file.modified = modified
     } else {
-      comments.push({
+      files.push({
+        modified,
         comments: extractComments(await vscode.workspace.openTextDocument(file)),
         path: document.uri.fsPath,
         relativePath: vscode.workspace.asRelativePath(document.uri.fsPath),
       })
-      panel.webview.postMessage({ command: 'setComments', comments })
     }
+    sendComments()
+    saveCachedComments()
   })
   // Add handler to subscriptions so it is cleaned up
   context.subscriptions.push(textDocumentSaveHandler)
@@ -97,15 +104,16 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
     for (const uri of event.files) {
       if (uri.path.match(/\.(js|jsx|ts|tsx)$/)) {
         const document = await vscode.workspace.openTextDocument(uri)
-        const newFile = {
+        files.push({
           comments: extractComments(document),
           path: uri.fsPath,
           relativePath: vscode.workspace.asRelativePath(uri.fsPath),
-        }
-        comments.push(newFile)
+          modified: await getModfiedDocument(document),
+        })
       }
     }
-    panel.webview.postMessage({ command: 'setComments', comments })
+    sendComments()
+    saveCachedComments()
   })
 
   context.subscriptions.push(fileCreateHandler)
@@ -113,29 +121,69 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
   // Watch for deleted files
   const fileDeleteHandler = vscode.workspace.onDidDeleteFiles(async (event) => {
     for (const deletedFile of event.files) {
-      comments = comments.filter((file) => file.path !== deletedFile.fsPath)
+      files = files.filter((file) => file.path !== deletedFile.fsPath)
     }
-    panel.webview.postMessage({ command: 'setComments', comments })
+    sendComments()
+    saveCachedComments()
   })
 
   context.subscriptions.push(fileDeleteHandler)
 
+  function saveCachedComments() {
+    context.globalState.update(
+      CACHE_KEY,
+      files.map((file) => {
+        return {
+          ...file,
+          comments: file.comments.map((comment) => ({
+            ...comment,
+            // NOTE:  we have to manually serialize vscode.Range
+            //        default it serializes to [start, end]
+            range: {
+              start: {
+                line: comment.range.start.line,
+                character: comment.range.start.character,
+              },
+              end: {
+                line: comment.range.end.line,
+                character: comment.range.end.character,
+              },
+            },
+          })),
+        }
+      }),
+    )
+  }
+
   async function extractCommentsFromWorkspace(): Promise<File[]> {
+    const cachedFiles = context.globalState.get<File[]>(CACHE_KEY, [])
+
     return Promise.all(
       await vscode.workspace
         .findFiles('**/*.{js,jsx,ts,tsx}', '{**/node_modules/**,**/dist/**,**/build/**}')
-        .then((files) =>
-          files.map(async (file) => ({
-            comments: extractComments(await vscode.workspace.openTextDocument(file)),
-            path: file.fsPath,
-            relativePath: vscode.workspace.asRelativePath(file.fsPath),
-          })),
+        .then((uris) =>
+          uris.map(async (uri) => {
+            const document = await vscode.workspace.openTextDocument(uri)
+            const modified = await getModfiedDocument(document)
+
+            const cachedFile = cachedFiles.find((file) => file.path === uri.fsPath)
+            if (cachedFile && cachedFile.modified === modified) {
+              return cachedFile
+            }
+
+            return {
+              comments: extractComments(document),
+              path: uri.fsPath,
+              relativePath: vscode.workspace.asRelativePath(uri.fsPath),
+              modified,
+            }
+          }),
         ),
     )
   }
 
   async function updateComment(filePath: string, index: number, newComment: string) {
-    const file = comments.find(({ path }) => path === filePath)
+    const file = files.find(({ path }) => path === filePath)
 
     if (!file) {
       console.error('file is undefined', filePath)
@@ -151,19 +199,15 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
 
     const fileUri = vscode.Uri.file(filePath)
     const document = await vscode.workspace.openTextDocument(fileUri)
-
     const edit = new vscode.WorkspaceEdit()
     edit.replace(fileUri, comment.range, newComment)
     await vscode.workspace.applyEdit(edit)
     await document.save()
-
-    // Recalculate all ranges for the comments in the updated file
-    // file.comments = extractComments(document)
   }
 
   async function updateAll(config: { search: RegexConfig; replace: string }) {
     return Promise.all(
-      comments.map(async (file) => {
+      files.map(async (file) => {
         const fileUri = vscode.Uri.file(file.path)
         const document = await vscode.workspace.openTextDocument(fileUri)
         const source = document.getText()
@@ -185,11 +229,6 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
         // Apply the edit
         await vscode.workspace.applyEdit(edit)
         await document.save()
-
-        if (matches.length > 0) {
-          // Recalculate all ranges for the comments in the updated file
-          file.comments = extractComments(document)
-        }
       }),
     )
   }
@@ -208,3 +247,7 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
     editor.revealRange(selection, vscode.TextEditorRevealType.InCenter)
   }
 }, config)
+
+async function getModfiedDocument(document: vscode.TextDocument) {
+  return (await vscode.workspace.fs.stat(document.uri)).mtime
+}

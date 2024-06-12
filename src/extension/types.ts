@@ -12,6 +12,7 @@ export type File = {
   path: string
   relativePath: string
   comments: Comment[]
+  modified: number
 }
 export type Files = File[]
 

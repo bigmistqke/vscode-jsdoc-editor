@@ -17,7 +17,7 @@ export function SearchAndReplace(props: {
     setSearchQuery: Setter<string>
   }) => void
   open: boolean
-  comments: Files
+  files: Files
   onUpdate: (filePath: string, index: number, source: string) => void
   onUpdateAll: (config: UpdateAllConfig) => void
   onClose: () => void
@@ -44,7 +44,7 @@ export function SearchAndReplace(props: {
     const _query = searchQuery()
     if (!_query) return []
     const result: { start: number; end: number; path: string; index: number; id: string }[] = []
-    for (const { path, comments } of props.comments) {
+    for (const { path, comments } of props.files) {
       let index = 0
       for (const comment of comments) {
         result.push(
@@ -115,10 +115,10 @@ export function SearchAndReplace(props: {
   function replace() {
     const match = matches()[currentMatchIndex()]
 
-    const originalSource = props.comments.find((comment) => comment.path === match.path)?.comments[match.index]?.source
+    const originalSource = props.files.find((comment) => comment.path === match.path)?.comments[match.index]?.source
 
     if (!originalSource) {
-      console.error('Can not find source', props.comments, match.path)
+      console.error('Can not find source', props.files, match.path)
       return
     }
 

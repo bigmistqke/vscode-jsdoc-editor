@@ -9,7 +9,7 @@ import { SearchAndReplace } from './components/search-and-replace'
 import { createIdFromPath } from './utils/create-id-from-path'
 
 export default function App() {
-  const [comments, setComments] = createStore<Files>([])
+  const [files, setFiles] = createStore<Files>([])
   const [theme, setTheme] = createSignal<string>() // Default theme
   const [isSearchAndReplaceOpened, setIsSearchAndReplaceOpened] = createSignal(false)
   const [basePath, setBasePath] = createSignal('')
@@ -18,9 +18,8 @@ export default function App() {
     window.addEventListener('message', (event) => {
       const message = event.data
       switch (message.command) {
-        case 'setComments':
-          window.vscode.setState({ comments: message.comments })
-          setComments(reconcile(message.comments))
+        case 'setFiles':
+          setFiles(reconcile(message.files))
           break
         case 'setTheme':
           setTheme(message.theme)
@@ -33,7 +32,7 @@ export default function App() {
   })
 
   function onUpdate(filePath: string, index: number, newComment: string) {
-    setComments(({ path }) => path === filePath, 'comments', index, 'source', newComment)
+    setFiles(({ path }) => path === filePath, 'comments', index, 'source', newComment)
     window.vscode.postMessage({
       command: 'update',
       data: { filePath, index, comment: newComment },
@@ -97,14 +96,14 @@ export default function App() {
     <div class={styles.root} style={{ '--background-color': background() }}>
       <SearchAndReplace
         open={isSearchAndReplaceOpened()}
-        comments={comments}
+        files={files}
         onClose={() => setIsSearchAndReplaceOpened(false)}
         onUpdate={onUpdate}
         onUpdateAll={onUpdateAll}
         onMount={onSearchInputMount}
       />
       <div class={styles.comments}>
-        <For each={comments}>
+        <For each={files}>
           {(file) => (
             <div class={styles.file}>
               <h1>
