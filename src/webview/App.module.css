@@ -39,27 +39,4 @@
   gap: 40px;
   padding-bottom: 20px;
   overflow: auto;
-
-  & h1 {
-    word-wrap: break-word;
-    all: unset;
-    display: flex;
-    position: sticky;
-    top: 0px;
-    flex-wrap: wrap;
-    align-items: center;
-    z-index: 1;
-    box-sizing: border-box;
-    border-bottom: 1px solid var(--border-color);
-    background-color: var(--background-color);
-    padding: 10px 20px;
-    padding-bottom: 9px;
-    font-size: 16pt;
-  }
-
-  & .file {
-    display: flex;
-    flex-direction: column;
-    gap: 40px;
-  }
 }

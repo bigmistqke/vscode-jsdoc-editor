@@ -39,10 +39,11 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
     const data = message.data
 
     switch (command) {
-      case 'initialize':
+      case 'initialise':
         files = await extractCommentsFromWorkspace()
         sendFiles()
         sendCurrentTheme()
+        saveCachedFiles()
         return
       case 'update':
         await updateComment(data.filePath, data.index, data.comment)
@@ -94,7 +95,7 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
       })
     }
     sendFiles()
-    saveCachedComments()
+    saveCachedFiles()
   })
   // Add handler to subscriptions so it is cleaned up
   context.subscriptions.push(textDocumentSaveHandler)
@@ -113,7 +114,7 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
       }
     }
     sendFiles()
-    saveCachedComments()
+    saveCachedFiles()
   })
 
   context.subscriptions.push(fileCreateHandler)
@@ -124,12 +125,12 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
       files = files.filter((file) => file.path !== deletedFile.fsPath)
     }
     sendFiles()
-    saveCachedComments()
+    saveCachedFiles()
   })
 
   context.subscriptions.push(fileDeleteHandler)
 
-  function saveCachedComments() {
+  function saveCachedFiles() {
     context.globalState.update(
       CACHE_KEY,
       files.map((file) => {
@@ -157,28 +158,26 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
 
   async function extractCommentsFromWorkspace(): Promise<File[]> {
     const cachedFiles = context.globalState.get<File[]>(CACHE_KEY, [])
+    const uris = await vscode.workspace.findFiles('**/*.{js,jsx,ts,tsx}', '{**/node_modules/**,**/dist/**,**/build/**}')
 
     return Promise.all(
-      await vscode.workspace
-        .findFiles('**/*.{js,jsx,ts,tsx}', '{**/node_modules/**,**/dist/**,**/build/**}')
-        .then((uris) =>
-          uris.map(async (uri) => {
-            const document = await vscode.workspace.openTextDocument(uri)
-            const modified = await getModfiedDocument(document)
+      uris.map(async (uri) => {
+        const stat = await vscode.workspace.fs.stat(uri)
+        const cachedFile = cachedFiles.find((file) => file.path === uri.fsPath)
 
-            const cachedFile = cachedFiles.find((file) => file.path === uri.fsPath)
-            if (cachedFile && cachedFile.modified === modified) {
-              return cachedFile
-            }
+        if (cachedFile && cachedFile.modified === stat.mtime) {
+          return cachedFile
+        }
 
-            return {
-              comments: extractComments(document),
-              path: uri.fsPath,
-              relativePath: vscode.workspace.asRelativePath(uri.fsPath),
-              modified,
-            }
-          }),
-        ),
+        const document = await vscode.workspace.openTextDocument(uri)
+
+        return {
+          comments: extractComments(document),
+          path: uri.fsPath,
+          relativePath: vscode.workspace.asRelativePath(uri.fsPath),
+          modified: stat.mtime,
+        }
+      }),
     ).then((files) => files.sort((a, b) => (a.path < b.path ? -1 : 1)))
   }
 

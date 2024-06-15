@@ -1,19 +1,16 @@
 import { getHighlighter } from 'shiki'
-import { Index, createMemo, createResource, createSignal, mapArray, mergeProps, onMount } from 'solid-js'
+import { Index, Show, createMemo, createResource, createSignal, mapArray, mergeProps } from 'solid-js'
 import { createStore, reconcile } from 'solid-js/store'
-import { File, UpdateAllConfig } from '~extension/types'
+import type { File, UpdateAllConfig } from '~extension/types'
 import styles from './App.module.css'
-import { BreadCrumbs } from './components/breadcrumbs'
-import { Comment as CommentComponent } from './components/comment'
+import { File as FileComponent } from './components/file'
 import { SearchAndReplace } from './components/search-and-replace'
 import { calculateContrastingColor } from './solid-shiki-textarea/utils/calculate-contrasting-color'
 import { cleanComment as cleanSource } from './utils/clean-comment'
-import { createIdFromPath } from './utils/create-id-from-path'
 
 export default function App() {
-  const [theme, setTheme] = createSignal<string>('min-light') // Default theme
+  const [theme, setTheme] = createSignal<string>() // Default theme
   const [isSearchAndReplaceOpened, setIsSearchAndReplaceOpened] = createSignal(false)
-
   const [files, setFiles] = createStore<File[]>([])
   function setSource(fileIndex: number, commentIndex: number, source: string) {
     setFiles(fileIndex, 'comments', commentIndex, 'source', source)
@@ -61,20 +58,18 @@ export default function App() {
       })),
   )
 
-  onMount(() => {
-    window.addEventListener('message', (event) => {
-      const message = event.data
-      switch (message.command) {
-        case 'setFiles':
-          setFiles(reconcile(message.files))
-          break
-        case 'setTheme':
-          setTheme(message.theme.toLowerCase())
-          break
-      }
-    })
-    window.vscode.postMessage({ command: 'initialize' })
+  window.addEventListener('message', (event) => {
+    const message = event.data
+    switch (message.command) {
+      case 'setFiles':
+        setFiles(reconcile(message.files))
+        break
+      case 'setTheme':
+        setTheme(message.theme.toLowerCase())
+        break
+    }
   })
+  window.vscode.postMessage({ command: 'initialise' })
 
   function postUpdateFile(filePath: string, commentIndex: number, source: string) {
     window.vscode.postMessage({
@@ -111,26 +106,19 @@ export default function App() {
         open={isSearchAndReplaceOpened()}
       />
       <div class={styles.comments} style={{ ...themeStyles() }}>
-        <Index each={files}>
+        <Index each={processedFiles()}>
           {(file, fileIndex) => (
-            <div class={styles.file}>
-              <h1>
-                <BreadCrumbs breadcrumbs={file().relativePath.split('/')} />
-              </h1>
-              <Index each={file().comments}>
-                {(comment, commentIndex) => (
-                  <CommentComponent
-                    cleanedSource={processedFiles()[fileIndex].comments[commentIndex].cleanedSource}
-                    comment={comment()}
-                    id={`${createIdFromPath(file().path)}${commentIndex}`}
-                    onInput={(comment) => setSource(fileIndex, commentIndex, comment)}
-                    onOpenLine={() => postOpenLine(file().path, comment().line)}
-                    onUpdateFile={() => postUpdateFile(file().path, commentIndex, comment().source)}
-                    theme={theme()}
-                  />
-                )}
-              </Index>
-            </div>
+            <Show when={file().comments.length > 0}>
+              <FileComponent
+                file={file()}
+                theme={theme()}
+                onInput={(commentIndex, source) => {
+                  setSource(fileIndex, commentIndex, source)
+                }}
+                onOpenLine={postOpenLine}
+                onUpdateFile={postUpdateFile}
+              />
+            </Show>
           )}
         </Index>
       </div>

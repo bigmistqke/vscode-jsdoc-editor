@@ -1,17 +1,7 @@
 import { List } from '@solid-primitives/list'
 import clsx from 'clsx'
 import { codeToHast, type BundledTheme, type CodeOptionsSingleTheme } from 'shiki'
-import {
-  ComponentProps,
-  Index,
-  Show,
-  createEffect,
-  createMemo,
-  createSignal,
-  onCleanup,
-  useTransition,
-  type JSX,
-} from 'solid-js'
+import { ComponentProps, Index, Show, createEffect, createSignal, onCleanup, useTransition, type JSX } from 'solid-js'
 import { Dynamic } from 'solid-js/web'
 import { Parent } from 'unist'
 import { whenever } from './utils/conditionals'
@@ -74,10 +64,10 @@ export function HastTextarea(
     width: 0,
     height: 0,
   })
-  const maxCharCount = createMemo(() => calculateMaxCharCount(config.value))
-  const lineCount = createMemo(() => props.lineCount || config.value.split('\n').length)
-
   const [, startTransition] = useTransition()
+
+  const maxCharCount = () => calculateMaxCharCount(config.value)
+  const lineCount = () => props.lineCount || config.value.split('\n').length
 
   return (
     <div
