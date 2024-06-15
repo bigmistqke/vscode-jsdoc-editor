@@ -18,10 +18,27 @@ const config: Config = {
   },
 }
 
-const CACHE_KEY = 'jsdoooc'
+function getWorkspaceRootPaths(): string[] {
+  const workspaceFolders = vscode.workspace.workspaceFolders
+  if (workspaceFolders && workspaceFolders.length > 0) {
+    // Return the path of the first workspace folder
+    return workspaceFolders.map((folder) => folder.uri.fsPath)
+  }
+  return []
+}
+
+async function getModfiedFromUri(uri: vscode.Uri) {
+  return (await vscode.workspace.fs.stat(uri)).mtime
+}
 
 export const activate = createActivate((panel: vscode.WebviewPanel, context: vscode.ExtensionContext) => {
   let files: File[] = []
+
+  const rootPaths = getWorkspaceRootPaths()
+
+  if (rootPaths.length === 0) return
+
+  const CACHE_KEY = `jsdoc-editor-${rootPaths.join('-')}`
 
   // Function to send the comments to the webviez
   function sendFiles() {
@@ -82,7 +99,12 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
   // Watch for changes in the currently opened text documents
   const textDocumentSaveHandler = vscode.workspace.onDidSaveTextDocument(async (document) => {
     const file = files.find(({ path }) => path === document.uri.fsPath)
-    const modified = await getModfiedDocument(document)
+
+    const modified = await getModfiedFromUri(document.uri)
+
+    if (file && file.modified === modified) return
+    if (file && updatingMap.has(file)) return
+
     if (file) {
       file.comments = extractComments(document)
       file.modified = modified
@@ -94,6 +116,7 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
         relativePath: vscode.workspace.asRelativePath(document.uri.fsPath),
       })
     }
+
     sendFiles()
     saveCachedFiles()
   })
@@ -109,7 +132,7 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
           comments: extractComments(document),
           path: uri.fsPath,
           relativePath: vscode.workspace.asRelativePath(uri.fsPath),
-          modified: await getModfiedDocument(document),
+          modified: await getModfiedFromUri(document.uri),
         })
       }
     }
@@ -162,10 +185,10 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
 
     return Promise.all(
       uris.map(async (uri) => {
-        const stat = await vscode.workspace.fs.stat(uri)
+        const modified = await getModfiedFromUri(uri)
         const cachedFile = cachedFiles.find((file) => file.path === uri.fsPath)
 
-        if (cachedFile && cachedFile.modified === stat.mtime) {
+        if (cachedFile && cachedFile.modified === modified) {
           return cachedFile
         }
 
@@ -175,7 +198,7 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
           comments: extractComments(document),
           path: uri.fsPath,
           relativePath: vscode.workspace.asRelativePath(uri.fsPath),
-          modified: stat.mtime,
+          modified,
         }
       }),
     ).then((files) => files.sort((a, b) => (a.path < b.path ? -1 : 1)))
@@ -204,32 +227,54 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
     await document.save()
   }
 
+  let updatingMap = new Map<File, vscode.WorkspaceEdit>()
+
   async function updateAll(config: { search: RegexConfig; replace: string }) {
-    return Promise.all(
-      files.map(async (file) => {
-        const fileUri = vscode.Uri.file(file.path)
-        const document = await vscode.workspace.openTextDocument(fileUri)
-        const source = document.getText()
+    if (updatingMap.size > 0) {
+      console.error('No updateAll-call can be called while another updateAll-call is still progressing')
+      return
+    }
 
-        // Find all matches
-        const matches = [...source.matchAll(composeRegex(config.search))]
+    for (const file of files) {
+      const fileUri = vscode.Uri.file(file.path)
+      const regex = composeRegex(config.search)
 
-        // Create a workspace edit
-        const edit = new vscode.WorkspaceEdit()
-        matches.forEach((match) => {
-          if (match.index !== undefined) {
-            const startPos = document.positionAt(match.index)
-            const endPos = document.positionAt(match.index + match[0].length)
-            const range = new vscode.Range(startPos, endPos)
-            edit.replace(document.uri, range, config.replace)
-          }
-        })
+      let hasMatch = false
 
-        // Apply the edit
-        await vscode.workspace.applyEdit(edit)
-        await document.save()
-      }),
-    )
+      // Create a workspace edit
+      const edit = new vscode.WorkspaceEdit()
+      for (const comment of file.comments) {
+        if (comment.source.match(regex)) {
+          hasMatch = true
+          const source = comment.source.replaceAll(regex, config.replace)
+          edit.replace(fileUri, comment.range, source)
+        }
+      }
+
+      if (hasMatch) {
+        updatingMap.set(file, edit)
+      }
+    }
+
+    try {
+      await Promise.all(
+        Array.from(updatingMap.entries()).map(async ([file, edit]) => {
+          const fileUri = vscode.Uri.file(file.path)
+          const document = await vscode.workspace.openTextDocument(fileUri)
+          // Apply the edit
+          await vscode.workspace.applyEdit(edit)
+          await document.save()
+          // We update file manually instead of relying on the onDidSaveTextDocument-listener,
+          // so that we can execute all of the edits and then send the updated files to the client.
+          file.modified = await getModfiedFromUri(fileUri)
+          file.comments = extractComments(document)
+        }),
+      )
+    } finally {
+      updatingMap.clear()
+      sendFiles()
+      saveCachedFiles()
+    }
   }
 
   async function openFileAtLine(filePath: string, line: number) {
@@ -246,7 +291,3 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
     editor.revealRange(selection, vscode.TextEditorRevealType.InCenter)
   }
 }, config)
-
-async function getModfiedDocument(document: vscode.TextDocument) {
-  return (await vscode.workspace.fs.stat(document.uri)).mtime
-}
