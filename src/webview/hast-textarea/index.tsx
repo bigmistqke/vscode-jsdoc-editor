@@ -54,8 +54,6 @@ export function HastTextarea(
       theme?: Theme
       /** Callback function to handle updates to the source code. */
       onInput?: (source: string) => void
-      onPostProcessHast?: (hast: Root) => Root
-      onPostProcessText?: (value: string) => string
       /** The programming language of the source code for syntax highlighting. */
       lang?: string
       overlay?: JSX.Element
@@ -72,13 +70,12 @@ export function HastTextarea(
     'onBlur',
     'onFocus',
   ])
-  const source = createMemo(() => props.onPostProcessText?.(config.value) || config.value)
   const [characterDimensions, setCharacterDimensions] = createSignal<Dimensions>({
     width: 0,
     height: 0,
   })
-  const maxCharCount = createMemo(() => calculateMaxCharCount(source()))
-  const lineCount = createMemo(() => props.lineCount || source().split('\n').length)
+  const maxCharCount = createMemo(() => calculateMaxCharCount(config.value))
+  const lineCount = createMemo(() => props.lineCount || config.value.split('\n').length)
 
   const [, startTransition] = useTransition()
 
@@ -105,7 +102,7 @@ export function HastTextarea(
           }}
           onBlur={config.onBlur}
           onFocus={config.onFocus}
-          value={source()}
+          value={config.value}
         />
         <code class={styles.shiki}>
           <List each={props.hast?.children}>{(line) => <HastNode node={line()} />}</List>

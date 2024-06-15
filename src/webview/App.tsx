@@ -1,18 +1,65 @@
 import { getHighlighter } from 'shiki'
-import { For, Index, Setter, createResource, createSignal, onMount } from 'solid-js'
+import { Index, createMemo, createResource, createSignal, mapArray, mergeProps, onMount } from 'solid-js'
 import { createStore, reconcile } from 'solid-js/store'
-import type { Files, UpdateAllConfig } from '~extension/types'
+import { File, UpdateAllConfig } from '~extension/types'
 import styles from './App.module.css'
 import { BreadCrumbs } from './components/breadcrumbs'
 import { Comment as CommentComponent } from './components/comment'
 import { SearchAndReplace } from './components/search-and-replace'
+import { calculateContrastingColor } from './solid-shiki-textarea/utils/calculate-contrasting-color'
+import { cleanComment as cleanSource } from './utils/clean-comment'
 import { createIdFromPath } from './utils/create-id-from-path'
 
 export default function App() {
-  const [files, setFiles] = createStore<Files>([])
-  const [theme, setTheme] = createSignal<string>() // Default theme
+  const [theme, setTheme] = createSignal<string>('min-light') // Default theme
   const [isSearchAndReplaceOpened, setIsSearchAndReplaceOpened] = createSignal(false)
-  const [basePath, setBasePath] = createSignal('')
+
+  const [files, setFiles] = createStore<File[]>([])
+  function setSource(fileIndex: number, commentIndex: number, source: string) {
+    setFiles(fileIndex, 'comments', commentIndex, 'source', source)
+  }
+  const processedFiles = createMemo(
+    mapArray(
+      () => files,
+      (file) => {
+        const cleanedComments = createMemo(
+          mapArray(
+            () => file.comments,
+            (comment) => {
+              const cleanedSource = createMemo(() => cleanSource(comment.source))
+              return mergeProps(comment, {
+                get cleanedSource() {
+                  return cleanedSource()
+                },
+              })
+            },
+          ),
+        )
+        return mergeProps(file, {
+          get comments() {
+            return cleanedComments()
+          },
+        })
+      },
+    ),
+  )
+
+  const [background] = createResource(theme, (theme) =>
+    getHighlighter({ themes: [theme.toLowerCase()], langs: ['tsx'] })
+      .then((highlighter) => highlighter.getTheme(theme?.toLowerCase()))
+      .then((theme) => theme.bg),
+  )
+
+  // Get styles from current theme
+  const [themeStyles] = createResource(theme, (theme) =>
+    getHighlighter({ themes: [theme], langs: ['tsx'] })
+      .then((highlighter) => highlighter.getTheme(theme))
+      .then((theme) => ({
+        '--theme-selection-color': calculateContrastingColor(theme.bg),
+        '--theme-background-color': theme.bg,
+        '--theme-foreground-color': theme.fg,
+      })),
+  )
 
   onMount(() => {
     window.addEventListener('message', (event) => {
@@ -22,107 +69,70 @@ export default function App() {
           setFiles(reconcile(message.files))
           break
         case 'setTheme':
-          setTheme(message.theme)
+          setTheme(message.theme.toLowerCase())
           break
-        case 'setBasePath':
-          setBasePath(message.basePath)
       }
     })
     window.vscode.postMessage({ command: 'initialize' })
   })
 
-  function onUpdate(filePath: string, index: number, newComment: string) {
-    setFiles(({ path }) => path === filePath, 'comments', index, 'source', newComment)
+  function postUpdateFile(filePath: string, commentIndex: number, source: string) {
     window.vscode.postMessage({
       command: 'update',
-      data: { filePath, index, comment: newComment },
+      data: { filePath, index: commentIndex, comment: source },
     })
   }
 
-  function onUpdateAll(data: UpdateAllConfig) {
+  function postUpdateAll(data: UpdateAllConfig) {
     window.vscode.postMessage({
       command: 'updateAll',
       data,
     })
   }
 
-  const openFileAtLine = (filePath: string, line: number) => {
+  function postOpenLine(filePath: string, line: number) {
     window.vscode.postMessage({
       command: 'openFileAtLine',
       data: { filePath, line },
     })
   }
 
-  const [background] = createResource(theme, (theme) =>
-    getHighlighter({ themes: [theme.toLowerCase()], langs: ['tsx'] })
-      .then((highlighter) => highlighter.getTheme(theme?.toLowerCase()))
-      .then((theme) => theme.bg),
-  )
-
-  function onSearchInputMount({
-    replaceInput,
-    searchInput,
-    setSearchQuery,
-  }: {
-    replaceInput: HTMLInputElement
-    searchInput: HTMLInputElement
-    setSearchQuery: Setter<string>
-  }) {
-    function onKeyDown(e: KeyboardEvent) {
-      const cmd = e.ctrlKey || e.metaKey
-      switch (e.key) {
-        case 'f':
-          if (cmd) {
-            setIsSearchAndReplaceOpened(true)
-            const selection = window.getSelection()
-            setSearchQuery(selection?.toString() || '')
-            searchInput.focus()
-            searchInput.select()
-          }
-          break
-        case 'r':
-          if (cmd) {
-            setIsSearchAndReplaceOpened(true)
-            replaceInput.focus()
-            replaceInput.select()
-          }
-          break
-      }
-    }
-    window.addEventListener('keydown', onKeyDown)
-  }
-
   return (
     <div class={styles.root} style={{ '--background-color': background() }}>
       <SearchAndReplace
-        open={isSearchAndReplaceOpened()}
-        files={files}
+        files={processedFiles()}
         onClose={() => setIsSearchAndReplaceOpened(false)}
-        onUpdate={onUpdate}
-        onUpdateAll={onUpdateAll}
-        onMount={onSearchInputMount}
+        onOpen={() => setIsSearchAndReplaceOpened(true)}
+        onReplace={(fileIndex, commentIndex, source) => {
+          setSource(fileIndex, commentIndex, source)
+          postUpdateFile(files[fileIndex].path, commentIndex, source)
+        }}
+        onUpdateAll={postUpdateAll}
+        open={isSearchAndReplaceOpened()}
       />
-      <div class={styles.comments}>
-        <For each={files}>
-          {(file) => (
+      <div class={styles.comments} style={{ ...themeStyles() }}>
+        <Index each={files}>
+          {(file, fileIndex) => (
             <div class={styles.file}>
               <h1>
-                <BreadCrumbs breadcrumbs={file.relativePath.split('/')} />
+                <BreadCrumbs breadcrumbs={file().relativePath.split('/')} />
               </h1>
-              <Index each={file.comments}>
-                {(comment, index) => (
+              <Index each={file().comments}>
+                {(comment, commentIndex) => (
                   <CommentComponent
-                    id={`${createIdFromPath(file.path)}${index}`}
-                    theme={theme()}
+                    cleanedSource={processedFiles()[fileIndex].comments[commentIndex].cleanedSource}
                     comment={comment()}
-                    onUpdate={(value) => onUpdate(file.path, index, value)}
-                    onOpenLine={() => openFileAtLine(file.path, comment().line)}
+                    id={`${createIdFromPath(file().path)}${commentIndex}`}
+                    onInput={(comment) => setSource(fileIndex, commentIndex, comment)}
+                    onOpenLine={() => postOpenLine(file().path, comment().line)}
+                    onUpdateFile={() => postUpdateFile(file().path, commentIndex, comment().source)}
+                    theme={theme()}
                   />
                 )}
               </Index>
             </div>
           )}
-        </For>
+        </Index>
       </div>
     </div>
   )

@@ -1,109 +1,85 @@
-function trimAsterisks(str: string) {
-  return str.replace(/^\*+|\*+$/g, '')
-}
+// Target: Single-line JSDoc comments
+// Regex: /^\/\*\*+ ?(.*?) *\*+\/$/
+// - ^\/\*\*+ : Match the start of a single-line JSDoc comment (/**)
+// - ? : Match zero or one whitespace
+// - (.*?) : Capture the content inside the JSDoc comment in a non-greedy way
+// - * : Match zero or more trailing whitespace
+// - \*+\/$ : Match one or more asterisks followed by the closing (*/)
+const singleLineCommentRegex = /^\/\*\*+ ?(.*?) *\*+\/$/
+
+// Target: Start of a multi-line JSDoc comment with zero or one whitespace after /**
+// Regex: /^\/\*\* ?(.*)$/
+// - ^\/\*\* : Match the start of a multi-line JSDoc comment (/**)
+// - ? : Match zero or one whitespace
+// - (.*) : Capture any content that follows, including additional leading whitespaces
+// - $ : Match the end of the line
+const startOfCommentRegex = /^\/\*\* ?(.*)$/
+
+// Target: End of a multi-line JSDoc comment with zero or more whitespace characters before */
+// Regex: /^(.*?)\s*\*+\/$/
+// - ^(.*?) : Capture any content at the start of the line in a non-greedy way
+// - \s* : Match zero or more whitespace characters
+// - \*+\/$ : Match one or more asterisks followed by the closing (*/)
+const endOfCommentRegex = /^(.*?)\s*\*+\/$/
+
+// Target: Lines within a multi-line JSDoc comment ` * `
+// Regex: /\s*\*+\s?(.*)$/
+// - ^\s*\*+\s? : Match the start of the line, optional leading whitespace, followed by one or more asterisks and an optional space ( * )
+// - (.*) : Capture the rest of the line
+// - $ : Match the end of the line
+const middleOfCommentRegex = /\s*\*+\s?(.*)$/
 
 /**
- * Segments a JSDoc comment into its constituent parts for cleaning.
- * Handles both single-line and multi-line JSDoc comments, extracting
- * meaningful components such as comment markers and content.
- *
- * @param comment - The JSDoc comment string to be segmented.
- * @returns An array of arrays, where each sub-array contains parts of the JSDoc comment.
- */
-function segmentCommentForCleaning(comment: string) {
-  // Split the input string into lines
-  const lines = comment.split('\n')
-
-  // Handle single-line comments
-  if (lines.length === 1) {
-    // Target: Single-line JSDoc comments
-    // Regex: /^\/\*\*(.*)\*\/$/
-    // - ^\/\*\* : Match the start of a single-line JSDoc comment (/**)
-    // - (.*) : Capture the content inside the JSDoc comment
-    // - \*\/$ : Match the end of a single-line JSDoc comment (*/)
-    const singleLineMatch = comment.match(/^\/\*\*(.*)\*\/$/)
-
-    // If a single-line comment is found, parse it and return
-    if (singleLineMatch) {
-      // Extract the content between /** and */
-      return [['/** ', trimAsterisks(singleLineMatch[1].trim()), ' */']]
-    }
-  }
-
-  // Target: Start of a multi-line JSDoc comment
-  // Regex: /^\/\*\*(.*)$/
-  // - ^\/\*\* : Match the start of a multi-line JSDoc comment (/**)
-  // - (.*) : Capture any content that follows
-  // - $ : Match the end of the line
-  const isStartOfComment = /^\/\*\*(.*)$/
-
-  // Target: End of a multi-line JSDoc comment
-  // Regex: /^(.*)\*\/$/
-  // - ^(.*) : Capture any content at the start of the line
-  // - \*\/$ : Match the end of a multi-line JSDoc comment (*/)
-  const isEndOfComment = /^(.*)\**\*\/$/
-
-  // Map each line to its parsed form
-  const parsedArray = lines.map((line) => {
-    const trimmedLine = line.trim()
-
-    // Check if the line is the start or end of a multi-line comment
-    if (isStartOfComment.test(trimmedLine)) {
-      const match = trimmedLine.match(isStartOfComment)
-      return match?.length && match[1] ? ['/**', match[1].trim()] : ['/**']
-    } else if (isEndOfComment.test(trimmedLine)) {
-      const match = trimmedLine.match(isEndOfComment)
-      if (!match?.length || match[1]) {
-        return ['*/']
-      }
-      const content = trimAsterisks(match[1].trim())
-      if (!content) return ['*/']
-      return [content, '*/']
-    } else {
-      //  Target: Lines within a multi-line JSDoc comment ` * `
-      //  Regex: /^(\s*\*\s?)(.*)$/
-      //  - ^(\s*\*\s?) : Match the start of the line, optional leading whitespace, followed by an asterisk and an optional space ( * )
-      //  - (.*) : Capture the rest of the line
-      //  - $ : Match the end of the line
-      const match = line.match(/^(\s*\*\s?)(.*)$/)
-      if (match) {
-        // If the line matches the pattern, return the parts as an array
-        return [match[1], trimAsterisks(match[2])]
-      } else {
-        // Lines without asterisks should keep their leading whitespace intact
-        return ['', trimAsterisks(line)]
-      }
-    }
-  })
-
-  return parsedArray
-}
-
-/**
- * Cleans a JSDoc comment by segmenting it into parts,
- * removing jsdoc markers from each line, and then joining them back together.
- *
+ * Cleans a JSDoc comment by removing all of its jsdoc markers.
  * Handles both single-line and multi-line JSDoc comments.
  *
  * @param comment - The JSDoc comment string to be cleaned.
  * @returns - The cleaned JSDoc comment.
  */
 export function cleanComment(comment: string) {
-  return segmentCommentForCleaning(comment)
-    .map((lineParts, index, array) => {
-      if (array.length > 1 && index === array.length - 1) {
-        if (lineParts.length > 1) {
-          return lineParts[0]
-        }
-        return undefined
+  // Split the input string into lines
+  const lines = comment.split('\n')
+
+  // Handle single-line comments
+  if (lines.length === 1) {
+    const singleLineMatch = comment.match(singleLineCommentRegex)
+    // If a single-line comment is found, parse it and return
+    if (singleLineMatch) {
+      // Extract the content between /** and */
+      return singleLineMatch[1]
+    }
+  }
+
+  const result: string[] = []
+
+  // Map each line to its parsed form
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+
+    // Check if the line is the start or end of a multi-line comment
+    if (startOfCommentRegex.test(line)) {
+      const match = line.match(startOfCommentRegex)
+      const trimmed = match?.length && match[1]
+      if (trimmed) {
+        result.push(trimmed)
       }
-      return lineParts[1]
-    })
-    .filter((line, index, array) => {
-      if (index === 0 || index === array.length - 1) {
-        return line !== undefined
+    } else if (endOfCommentRegex.test(line)) {
+      const match = line.match(endOfCommentRegex)
+      const trimmed = match?.length && match[1]
+      if (trimmed) {
+        result.push(trimmed)
       }
-      return true
-    })
-    .join('\n')
+    } else {
+      const match = line.match(middleOfCommentRegex)
+      if (match) {
+        // If the line matches the pattern, return the parts as an array
+        result.push(match[1])
+      } else {
+        // Lines without asterisks should keep their leading whitespace intact
+        result.push(line)
+      }
+    }
+  }
+
+  return result.join('\n')
 }

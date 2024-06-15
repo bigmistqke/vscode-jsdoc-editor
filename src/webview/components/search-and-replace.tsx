@@ -1,146 +1,115 @@
 import clsx from 'clsx'
-import { Setter, Show, createEffect, createMemo, createSignal, on, onMount } from 'solid-js'
+import { Show, createEffect, createMemo, createSignal, on, onMount } from 'solid-js'
 import { Codicon } from '~/solid-codicon'
+import { composeComment } from '~/utils/compose-comment'
 import { createIdFromPath } from '~/utils/create-id-from-path'
+import { getMatchedRanges } from '~/utils/get-matched-ranges'
 import { decrementSignal, incrementSignal } from '~/utils/increment-signal'
 import { onToggle } from '~/utils/on-toggle'
 import { spliceString } from '~/utils/splice-string'
-import type { Files, UpdateAllConfig } from '~extension/types'
+import type { CleanedFile, UpdateAllConfig } from '~extension/types'
 import { composeRegex } from '~extension/utils/compose-regex'
 import { getHighlightElement } from './comment'
 import styles from './search-and-replace.module.css'
 
+type Match = {
+  start: number
+  end: number
+  path: string
+  index: number
+  id: string
+  fileIndex: number
+  commentIndex: number
+}
+
+/**
+ * SearchAndReplace component allows searching and replacing text within multiple files.
+ *
+ * @param props - The properties object.
+ * @param props.files - An array of cleaned file objects where the search and replace operations will be performed.
+ * @param props.onClose - Callback function to be called when the search panel is closed.
+ * @param props.onOpen - Callback function to be called when the search panel is opened.
+ * @param props.onReplace - Callback function to be called when a replace operation is performed.
+ * @param props.onUpdateAll - Callback function to be called when the replace all operation is performed.
+ * @param props.open - A boolean indicating whether the search panel is open or closed.
+ *
+ * @example
+ * <SearchAndReplace
+ *   files={files}
+ *   onClose={() => console.log('Search panel closed')}
+ *   onOpen={() => console.log('Search panel opened')}
+ *   onReplace={(fileIndex, commentIndex, source) => console.log(`Replaced text in file ${fileIndex}, comment ${commentIndex}`)}
+ *   onUpdateAll={(config) => console.log('Replace all config', config)}
+ *   open={true}
+ * />
+ */
 export function SearchAndReplace(props: {
-  onMount: (api: {
-    replaceInput: HTMLInputElement
-    searchInput: HTMLInputElement
-    setSearchQuery: Setter<string>
-  }) => void
-  open: boolean
-  files: Files
-  onUpdate: (filePath: string, index: number, source: string) => void
-  onUpdateAll: (config: UpdateAllConfig) => void
+  files: CleanedFile[]
   onClose: () => void
+  onOpen: () => void
+  onReplace: (fileIndex: number, commentIndex: number, source: string) => void
+  onUpdateAll: (config: UpdateAllConfig) => void
+  open: boolean
 }) {
   const [searchQuery, setSearchQuery] = createSignal<string>('')
   const [replaceQuery, setReplaceQuery] = createSignal<string>('')
   const [isRegex, setIsRegex] = createSignal(false)
   const [isCaseSensitive, setIsCaseSensitive] = createSignal(false)
   const [isWholeWord, setIsWholeWord] = createSignal(false)
+
   const [currentMatchIndex, setMatchIndex] = createSignal(0)
+  const incrementMatchIndex = () => incrementSignal(setMatchIndex, matches().length - 1)
+  const decrementMatchIndex = () => decrementSignal(setMatchIndex, matches().length - 1)
 
-  const highlights = {
-    allMatches: new Highlight(),
-    currentMatch: new Highlight(),
-  }
-
-  CSS.highlights.set('all-matches', highlights.allMatches)
+  const regex = createMemo(() =>
+    composeRegex({
+      query: searchQuery(),
+      isCaseSensitive: isCaseSensitive(),
+      isWholeWord: isWholeWord(),
+      isRegex: isRegex(),
+    }),
+  )
 
   let searchInput: HTMLInputElement
   let replaceInput: HTMLInputElement
   let searchIcons: HTMLDivElement
+  const highlights = {
+    allMatches: new Highlight(),
+    currentMatch: new Highlight(),
+  }
+  CSS.highlights.set('all-matches', highlights.allMatches)
 
   const matches = createMemo(() => {
     const _query = searchQuery()
     if (!_query) return []
-    const result: { start: number; end: number; path: string; index: number; id: string }[] = []
-    for (const { path, comments } of props.files) {
+    const result: Match[] = []
+    for (let fileIndex = 0; fileIndex < props.files.length; fileIndex++) {
+      const { path, comments } = props.files[fileIndex]
       let index = 0
-      for (const comment of comments) {
-        result.push(
-          ...findAllOccurrences(comment.source).map(([start, end]) => ({
-            start,
-            end,
-            path,
-            index,
-            id: `${createIdFromPath(path)}${index}`,
-          })),
-        )
+      for (let commentIndex = 0; commentIndex < comments.length; commentIndex++) {
+        const cleanedSource = comments[commentIndex].cleanedSource
+
+        if (!cleanedSource) {
+          console.error('cleanedSource is undefined')
+          continue
+        }
+
+        const ranges = getMatchedRanges(cleanedSource, regex()).map(([start, end]) => ({
+          start,
+          end,
+          path,
+          index,
+          fileIndex,
+          commentIndex,
+          id: `${createIdFromPath(path)}${index}`,
+        }))
+
+        result.push(...ranges)
         index++
       }
     }
     return result
   })
-
-  const incrementMatchIndex = () => incrementSignal(setMatchIndex, matches().length - 1)
-  const decrementMatchIndex = () => decrementSignal(setMatchIndex, matches().length - 1)
-
-  function findAllOccurrences(inputString: string): Array<[number, number]> {
-    const regex = composeRegex({
-      query: searchQuery(),
-      isCaseSensitive: isCaseSensitive(),
-      isWholeWord: isWholeWord(),
-      isRegex: isRegex(),
-    })
-    const matches = inputString.matchAll(regex)
-    const ranges: Array<[number, number]> = []
-
-    for (const match of matches) {
-      if (match.index !== undefined) {
-        ranges.push([match.index, match.index + match[0].length])
-      }
-    }
-
-    return ranges
-  }
-
-  function select() {
-    highlights.currentMatch.clear()
-    highlights.allMatches.clear()
-
-    const match = matches()[currentMatchIndex()]
-    if (!match) return
-
-    const textarea = document.getElementById(match.id)?.querySelector('textarea')
-    const highlight = getHighlightElement(match.id)?.firstChild
-
-    if (textarea && highlight) {
-      textarea.focus()
-      textarea.setSelectionRange(match.start, match.end)
-
-      const range = new Range()
-      range.setStart(highlight, match.start)
-      range.setStart(highlight, match.end)
-
-      // Scroll to the range
-      const scrollElement = range.startContainer.parentElement
-      if (scrollElement) {
-        scrollElement.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' })
-      }
-
-      setSearchQuery('')
-    }
-  }
-
-  function replace() {
-    const match = matches()[currentMatchIndex()]
-
-    const originalSource = props.files.find((comment) => comment.path === match.path)?.comments[match.index]?.source
-
-    if (!originalSource) {
-      console.error('Can not find source', props.files, match.path)
-      return
-    }
-
-    const source = spliceString(originalSource, match.start, match.end - match.start, replaceQuery())
-    props.onUpdate(match.path, match.index, source)
-
-    if (findAllOccurrences(replaceQuery())) {
-      incrementMatchIndex()
-    }
-  }
-
-  function replaceAll() {
-    props.onUpdateAll({
-      search: {
-        query: searchQuery(),
-        isRegex: isRegex(),
-        isWholeWord: isWholeWord(),
-        isCaseSensitive: isCaseSensitive(),
-      },
-      replace: replaceQuery(),
-    })
-  }
 
   // Highlight current match
   createEffect(
@@ -154,6 +123,8 @@ export function SearchAndReplace(props: {
           return
         }
 
+        // FIXME
+        // why do we have to delay the highlight for some unknown reason.
         queueMicrotask(() => {
           const container = document.getElementById(match.id)
           const code = getHighlightElement(match.id)
@@ -187,6 +158,8 @@ export function SearchAndReplace(props: {
   createEffect(
     on(matches, (matches) => {
       highlights.allMatches.clear()
+      // FIXME
+      // why do we have to delay the highlight for some unknown reason.
       queueMicrotask(() => {
         for (const match of matches) {
           const code = getHighlightElement(match.id)
@@ -205,7 +178,92 @@ export function SearchAndReplace(props: {
   // Reset match index when opening
   createEffect(() => props.open && setMatchIndex(0))
 
-  onMount(() => props.onMount({ searchInput, replaceInput, setSearchQuery }))
+  // Initialize keydown-event
+  onMount(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const cmd = e.ctrlKey || e.metaKey
+      switch (e.key) {
+        case 'f':
+          if (cmd) {
+            props.onOpen()
+            const selection = window.getSelection()
+            setSearchQuery(selection?.toString() || '')
+            searchInput.focus()
+            searchInput.select()
+          }
+          break
+        case 'r':
+          if (cmd) {
+            props.onOpen()
+            replaceInput.focus()
+            replaceInput.select()
+          }
+          break
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+  })
+
+  // Select the currently match
+  function select() {
+    highlights.currentMatch.clear()
+    highlights.allMatches.clear()
+
+    const match = matches()[currentMatchIndex()]
+    if (!match) return
+
+    const textarea = document.getElementById(match.id)?.querySelector('textarea')
+    const highlight = getHighlightElement(match.id)?.firstChild
+
+    if (textarea && highlight) {
+      textarea.focus()
+      textarea.setSelectionRange(match.start, match.end)
+
+      const range = new Range()
+      range.setStart(highlight, match.start)
+      range.setStart(highlight, match.end)
+
+      // Scroll to the range
+      const scrollElement = range.startContainer.parentElement
+      if (scrollElement) {
+        scrollElement.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' })
+      }
+
+      setSearchQuery('')
+    }
+  }
+
+  // Replace the current match with the replaceQuery
+  function replace() {
+    const match = matches()[currentMatchIndex()]
+
+    const comment = props.files[match.fileIndex].comments[match.commentIndex]
+
+    if (!comment) {
+      console.error('Can not find comment', props.files, match.path)
+      return
+    }
+
+    const newCleanedSource = spliceString(comment.cleanedSource, match.start, match.end - match.start, replaceQuery())
+    props.onReplace(match.fileIndex, match.commentIndex, composeComment(newCleanedSource, comment.indentation))
+
+    if (getMatchedRanges(replaceQuery(), regex())) {
+      incrementMatchIndex()
+    }
+  }
+
+  // Replace all the matches with the replaceQuery
+  function replaceAll() {
+    props.onUpdateAll({
+      search: {
+        query: searchQuery(),
+        isRegex: isRegex(),
+        isWholeWord: isWholeWord(),
+        isCaseSensitive: isCaseSensitive(),
+      },
+      replace: replaceQuery(),
+    })
+  }
 
   function onKeyDown(e: KeyboardEvent) {
     switch (e.key) {

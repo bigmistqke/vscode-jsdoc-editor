@@ -1,6 +1,6 @@
 import * as vscode from 'vscode'
 
-export type Comment = {
+export interface Comment {
   source: string
   line: number
   range: vscode.Range
@@ -8,13 +8,20 @@ export type Comment = {
   breadcrumbs: string[]
   indentation: string
 }
-export type File = {
+export interface CleanedComment extends Comment {
+  cleanedSource: string
+}
+
+export interface File {
   path: string
   relativePath: string
   comments: Comment[]
   modified: number
 }
-export type Files = File[]
+
+export interface CleanedFile extends File {
+  comments: CleanedComment[]
+}
 
 export type RegexConfig = { query: string; isRegex: boolean; isWholeWord: boolean; isCaseSensitive: boolean }
 export type UpdateAllConfig = { search: RegexConfig; replace: string }

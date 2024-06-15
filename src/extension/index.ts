@@ -24,7 +24,7 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
   let files: File[] = []
 
   // Function to send the comments to the webviez
-  function sendComments() {
+  function sendFiles() {
     panel.webview.postMessage({ command: 'setFiles', files })
   }
 
@@ -41,7 +41,7 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
     switch (command) {
       case 'initialize':
         files = await extractCommentsFromWorkspace()
-        sendComments()
+        sendFiles()
         sendCurrentTheme()
         return
       case 'update':
@@ -93,7 +93,7 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
         relativePath: vscode.workspace.asRelativePath(document.uri.fsPath),
       })
     }
-    sendComments()
+    sendFiles()
     saveCachedComments()
   })
   // Add handler to subscriptions so it is cleaned up
@@ -112,7 +112,7 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
         })
       }
     }
-    sendComments()
+    sendFiles()
     saveCachedComments()
   })
 
@@ -123,7 +123,7 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
     for (const deletedFile of event.files) {
       files = files.filter((file) => file.path !== deletedFile.fsPath)
     }
-    sendComments()
+    sendFiles()
     saveCachedComments()
   })
 
@@ -179,7 +179,7 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
             }
           }),
         ),
-    )
+    ).then((files) => files.sort((a, b) => (a.path < b.path ? -1 : 1)))
   }
 
   async function updateComment(filePath: string, index: number, newComment: string) {
