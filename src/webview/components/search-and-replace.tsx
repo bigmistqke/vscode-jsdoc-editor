@@ -115,17 +115,19 @@ export function SearchAndReplace(props: {
   createEffect(
     on(
       () => [matches(), currentMatchIndex()] as const,
-      ([matches, currentMatchIndex]) => {
-        const match = matches[currentMatchIndex]
-
-        if (!match) {
-          highlights.currentMatch.clear()
-          return
-        }
-
+      ([_matches, currentMatchIndex]) => {
         // FIXME
         // why do we have to delay the highlight for some unknown reason.
         queueMicrotask(() => {
+          const match = _matches[currentMatchIndex]
+
+          console.log('match is', match, matches())
+
+          if (!match) {
+            highlights.currentMatch.clear()
+            return
+          }
+
           const container = document.getElementById(match.id)
           const code = getHighlightElement(match.id)
           const textNode = code?.firstChild
@@ -301,7 +303,7 @@ export function SearchAndReplace(props: {
       aria-hidden={props.open}
       class={clsx(styles.searchAndReplace, props.open && styles.open)}
       onKeyDown={onKeyDown}>
-      <div class={styles.searchContainer}>
+      <div class={styles.inputContainer}>
         <input
           aria-label="Find Input"
           title="Find Input"
@@ -313,7 +315,7 @@ export function SearchAndReplace(props: {
             setSearchQuery(e.currentTarget.value)
           }}
         />
-        <div ref={searchIcons!} class={styles.searchIcons}>
+        <div ref={searchIcons!} class={styles.inputIcons}>
           <Codicon
             aria-label="Match Case"
             title="Match Case"
@@ -342,7 +344,7 @@ export function SearchAndReplace(props: {
       </div>
 
       <div class={styles.row}>
-        <div class={styles.count}>
+        <div class={styles.count} data-break-350>
           <Show when={matches().length > 0} fallback="No results.">
             {currentMatchIndex() + 1} of {matches().length}
           </Show>
@@ -354,6 +356,7 @@ export function SearchAndReplace(props: {
           class={styles.iconButton}
           type="arrow-up"
           onClick={decrementMatchIndex}
+          data-break-400
         />
         <Codicon
           aria-label="Search Next Occurence"
@@ -362,6 +365,7 @@ export function SearchAndReplace(props: {
           class={styles.iconButton}
           type="arrow-down"
           onClick={incrementMatchIndex}
+          data-break-400
         />
         <Codicon
           aria-label="Close Search Panel"
@@ -371,20 +375,32 @@ export function SearchAndReplace(props: {
           onClick={() => props.onClose()}
         />
       </div>
-      <input
-        ref={replaceInput!}
-        aria-label="Replace Input"
-        placeholder="replace"
-        onInput={(e) => setReplaceQuery(e.currentTarget.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            replace()
-          }
-        }}
-      />
+      <div class={styles.inputContainer}>
+        <input
+          ref={replaceInput!}
+          aria-label="Replace Input"
+          placeholder="replace"
+          onInput={(e) => setReplaceQuery(e.currentTarget.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              replace()
+            }
+          }}
+        />
+        <div class={styles.inputIcons} data-break-350-show>
+          <Codicon aria-label="Replace Next Occurence" as="button" type="replace" onClick={replace} />
+          <Codicon aria-label="Replace All Occurences" as="button" type="replace-all" onClick={replaceAll} />
+        </div>
+      </div>
       <div class={styles.row}>
-        <Codicon aria-label="Replace Next Occurence" as="button" type="replace" onClick={replace} />
-        <Codicon aria-label="Replace All Occurences" as="button" type="replace-all" onClick={replaceAll} />
+        <Codicon aria-label="Replace Next Occurence" as="button" type="replace" onClick={replace} data-break-350 />
+        <Codicon
+          aria-label="Replace All Occurences"
+          as="button"
+          type="replace-all"
+          onClick={replaceAll}
+          data-break-350
+        />
       </div>
     </div>
   )
