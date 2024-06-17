@@ -274,6 +274,7 @@ export const activate = createActivate((panel: vscode.WebviewPanel, context: vsc
       updatingMap.clear()
       sendFiles()
       saveCachedFiles()
+      panel.webview.postMessage({ command: 'replaceAllCompleted' })
     }
   }
 

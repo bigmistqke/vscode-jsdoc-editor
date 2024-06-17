@@ -10,10 +10,11 @@ import { isNonNullable } from '~/utils/is-nullable'
 import { Button } from './button'
 import { CodiconButton } from './codicon-button'
 import styles from './hierarchy.module.css'
+import { LoaderAnimation } from './loader-animation'
 
 const fuzzyOptions = {
   includeScore: true,
-  shouldSort: true,
+  shouldSort: false,
   threshold: 0.2,
 }
 function fuzzySearch(query: string, paths: string[]) {
@@ -47,7 +48,7 @@ const hierarchyContext = createContext<{
   expanded: boolean
   matches: string[] | undefined
   scrollToFilePath: (path: string) => void
-  focusedFilePathArray: string[] | undefined
+  scrolledFilePathArray: string[] | undefined
 }>()
 function useHiearchy() {
   const context = useContext(hierarchyContext)
@@ -59,6 +60,7 @@ export function Hierachy(props: {
   scrolledFilePathArray: string[] | undefined
   files: CleanedFile[]
   onScrollToFilePath: (pathArray: string) => void
+  initialised: boolean
 }) {
   let scrollContainer: HTMLDivElement
   const [searchQuery, setSearchQuery] = createSignal<string>()
@@ -123,7 +125,7 @@ export function Hierachy(props: {
         get expanded() {
           return expanded()
         },
-        get focusedFilePathArray() {
+        get scrolledFilePathArray() {
           return props.scrolledFilePathArray
         },
         get matches() {
@@ -152,15 +154,17 @@ export function Hierachy(props: {
           <CodiconButton
             type="bare"
             class={styles.closeButton}
-            kind={expanded() ? 'close' : 'arrow-right'}
+            kind={expanded() ? 'chrome-minimize' : 'arrow-right'}
             onClick={() => setExpanded((expanded) => !expanded)}
           />
         </header>
-        <div ref={scrollContainer!} class={styles.scrollContainer}>
-          <For each={Object.keys(hierarchy())}>
-            {(path) => <Node visible={true} node={hierarchy()[path]} path={[path]} />}
-          </For>
-        </div>
+        <Show when={props.initialised} fallback={<LoaderAnimation />}>
+          <div ref={scrollContainer!} class={styles.scrollContainer}>
+            <For each={Object.keys(hierarchy())}>
+              {(path) => <Node visible={true} node={hierarchy()[path]} path={[path]} />}
+            </For>
+          </div>
+        </Show>
       </div>
     </hierarchyContext.Provider>
   )
@@ -199,6 +203,7 @@ function FilterFileInput(props: {
 
 export function Node(props: { visible: boolean; node: Record<string, any> | boolean; path: string[] }) {
   const context = useHiearchy()
+
   const visible = () => {
     if (!context.expanded) {
       return false
@@ -219,22 +224,22 @@ export function Node(props: { visible: boolean; node: Record<string, any> | bool
 
 function FileNode(props: { path: string[]; visible: boolean }) {
   const context = useHiearchy()
-  const isFocused = () => {
-    if (!context.focusedFilePathArray) return false
-    return props.path.every((part, i) => part === context.focusedFilePathArray![i])
+  const isActive = () => {
+    if (!context.scrolledFilePathArray) return false
+    return props.path.every((part, i) => part === context.scrolledFilePathArray![i])
   }
   return (
     <Button
       type="bare"
       id={getIdFromPath(props.path.join('/'), 'hierarchy-button')}
       onClick={() => context.scrollToFilePath(props.path.join('/'))}
-      class={clsx(styles.button, isFocused() && styles.focused)}
+      class={clsx(styles.button, isActive() && styles.active)}
       inert={!props.visible ? true : undefined}
       style={{
         'padding-left': `${props.path.length * 15}px`,
         display: !props.visible ? 'none' : undefined,
       }}>
-      <Codicon kind="dash" />
+      <Codicon kind="circle-small-filled" />
       {props.path[props.path.length - 1]}
     </Button>
   )
@@ -243,37 +248,36 @@ function FileNode(props: { path: string[]; visible: boolean }) {
 function FolderNode(props: { node: Record<string, any>; path: string[]; visible: boolean }) {
   const [childrenVisible, setChildrenVisible] = createSignal(false)
   const context = useHiearchy()
-  const isVisible = () => props.visible && childrenVisible()
-  const isFocused = () => {
+
+  const isActive = () => {
     if (!props.visible) return false
-    if (context.matches) return
-    if (!context.matches && childrenVisible()) return
-    if (!context.focusedFilePathArray) return
-    let focused = true
-    for (let i = 0; i < props.path.length; i++) {
-      if (props.path[i] !== context.focusedFilePathArray[i]) {
-        focused = false
-        break
-      }
-    }
-    return focused
+    if (context.matches) return false
+    if (childrenVisible()) return false
+    if (!context.scrolledFilePathArray) return false
+    return props.path.every((part, i) => part === context.scrolledFilePathArray![i])
   }
+
   return (
     <>
       <Button
         type="bare"
-        onClick={() => setChildrenVisible((visible) => !visible)}
-        class={clsx(styles.button, isFocused() && styles.focused)}
+        onClick={() => {
+          if (context.matches) return
+          setChildrenVisible((visible) => !visible)
+        }}
+        class={clsx(styles.button, isActive() && styles.active)}
         inert={!props.visible ? true : undefined}
         style={{
           'padding-left': `${props.path.length * 15}px`,
           display: !props.visible ? 'none' : undefined,
         }}>
-        <Codicon kind={childrenVisible() ? 'chevron-down' : 'chevron-right'} />
+        <Codicon kind={context.matches ? 'dash' : childrenVisible() ? 'chevron-down' : 'chevron-right'} />
         {props.path[props.path.length - 1]}
       </Button>
       <For each={Object.keys(props.node)}>
-        {(path) => <Node visible={isVisible()} node={props.node[path]} path={[...props.path, path]} />}
+        {(path) => (
+          <Node visible={props.visible && childrenVisible()} node={props.node[path]} path={[...props.path, path]} />
+        )}
       </For>
     </>
   )

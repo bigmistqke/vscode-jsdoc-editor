@@ -1,0 +1,19 @@
+.container {
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  align-items: center;
+}
+
+.icon {
+  animation: rotation 1s infinite;
+}
+
+@keyframes rotation {
+  from {
+    transform: rotateZ(0deg);
+  }
+  to {
+    transform: rotateZ(360deg);
+  }
+}

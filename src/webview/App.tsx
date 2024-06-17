@@ -5,6 +5,7 @@ import type { File, UpdateAllConfig } from '~extension/types'
 import styles from './App.module.css'
 import { File as FileComponent } from './components/file'
 import { Hierachy } from './components/hierarchy'
+import { LoaderAnimation } from './components/loader-animation'
 import { SearchAndReplace } from './components/search-and-replace'
 import { calculateContrastingColor } from './utils/calculate-contrasting-color'
 import { cleanComment as cleanSource } from './utils/clean-comment'
@@ -12,11 +13,13 @@ import { getIdFromPath, getPathFromId } from './utils/get-id-from-path'
 import { throttle } from './utils/throttle'
 
 export default function App() {
-  let commentsContainer: HTMLDivElement
+  let commentsRef: HTMLDivElement
   const [theme, setTheme] = createSignal<string>() // Default theme
   const [isSearchAndReplaceOpened, setIsSearchAndReplaceOpened] = createSignal(false)
   const [scrolledFilePath, setScrolledFilePath] = createSignal<string | undefined>()
+  const [pendingReplaceAll, setPendingReplaceAll] = createSignal(false)
   const [files, setFiles] = createStore<File[]>([])
+
   function setSource(fileIndex: number, commentIndex: number, source: string) {
     setFiles(fileIndex, 'comments', commentIndex, 'source', source)
   }
@@ -45,7 +48,7 @@ export default function App() {
       },
     ),
   )
-  const initialised = createMemo((prev) => prev || (files && theme()), false)
+  const initialised = createMemo<boolean>((prev) => prev || !!(files && theme()), false)
 
   const [background] = createResource(theme, (theme) =>
     getHighlighter({ themes: [theme.toLowerCase()], langs: ['tsx'] })
@@ -73,6 +76,9 @@ export default function App() {
       case 'setTheme':
         setTheme(message.theme.toLowerCase())
         break
+      case 'replaceAllCompleted':
+        setPendingReplaceAll(false)
+        break
     }
   })
   window.vscode.postMessage({ command: 'initialise' })
@@ -85,6 +91,7 @@ export default function App() {
   }
 
   function postUpdateAll(data: UpdateAllConfig) {
+    setPendingReplaceAll(true)
     window.vscode.postMessage({
       command: 'updateAll',
       data,
@@ -115,12 +122,12 @@ export default function App() {
     }
   }
 
-  function scrollToFilePath(pathArray: string) {
-    const id = getIdFromPath(pathArray, 'file')
+  function scrollToFilePath(path: string) {
+    const id = getIdFromPath(path, 'file')
     const section = document.getElementById(id)?.parentElement
     if (!section) return
     const top = section.offsetTop
-    commentsContainer.scrollTo({ top })
+    commentsRef.scrollTo({ top })
   }
 
   createEffect(() => {
@@ -134,12 +141,9 @@ export default function App() {
         scrolledFilePathArray={scrolledFilePath()?.split('/')}
         files={processedFiles()}
         onScrollToFilePath={scrollToFilePath}
+        initialised={initialised()}
       />
-      <div
-        ref={commentsContainer!}
-        class={styles.comments}
-        style={themeStyles()}
-        onScroll={throttle(updateScrolledFilePathArray, 100)}>
+      <div class={styles.commentsContainer} inert={pendingReplaceAll()} style={themeStyles()}>
         <SearchAndReplace
           files={processedFiles()}
           onClose={() => setIsSearchAndReplaceOpened(false)}
@@ -150,22 +154,30 @@ export default function App() {
           }}
           onReplaceAll={postUpdateAll}
           open={isSearchAndReplaceOpened()}
+          pendingReplaceAll={pendingReplaceAll()}
         />
-        <Index each={processedFiles()}>
-          {(file, fileIndex) => (
-            <Show when={file().comments.length > 0}>
-              <FileComponent
-                file={file()}
-                theme={theme()}
-                onInput={(commentIndex, source) => {
-                  setSource(fileIndex, commentIndex, source)
-                }}
-                onOpenLine={postOpenLine}
-                onUpdateFile={postUpdateFile}
-              />
-            </Show>
-          )}
-        </Index>
+        <div class={styles.comments} ref={commentsRef!} onScroll={throttle(updateScrolledFilePathArray, 100)}>
+          <Show when={pendingReplaceAll()}>
+            <LoaderAnimation class={styles.pendingReplaceAllOverlay} />
+          </Show>
+          <Show when={initialised()} fallback={<LoaderAnimation />}>
+            <Index each={processedFiles()}>
+              {(file, fileIndex) => (
+                <Show when={file().comments.length > 0}>
+                  <FileComponent
+                    file={file()}
+                    theme={theme()}
+                    onInput={(commentIndex, source) => {
+                      setSource(fileIndex, commentIndex, source)
+                    }}
+                    onOpenLine={postOpenLine}
+                    onUpdateFile={postUpdateFile}
+                  />
+                </Show>
+              )}
+            </Index>
+          </Show>
+        </div>
       </div>
     </div>
   )

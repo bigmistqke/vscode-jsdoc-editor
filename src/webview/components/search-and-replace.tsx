@@ -10,6 +10,7 @@ import type { CleanedFile, UpdateAllConfig } from '~extension/types'
 import { composeRegex } from '~extension/utils/compose-regex'
 import { CodiconButton } from './codicon-button'
 import { getHighlightElement } from './comment'
+import { LoaderAnimation } from './loader-animation'
 import styles from './search-and-replace.module.css'
 
 type Match = {
@@ -45,6 +46,7 @@ type Match = {
  */
 export function SearchAndReplace(props: {
   files: CleanedFile[]
+  pendingReplaceAll: boolean
   onClose: () => void
   onOpen: () => void
   onReplace: (fileIndex: number, commentIndex: number, source: string) => void
@@ -390,6 +392,11 @@ export function SearchAndReplace(props: {
       <div class={styles.row}>
         <CodiconButton aria-label="Replace Next Occurence" kind="replace" onClick={replace} data-break-350 />
         <CodiconButton aria-label="Replace All Occurences" kind="replace-all" onClick={replaceAll} data-break-350 />
+        <Show when={props.pendingReplaceAll}>
+          <div class={styles.loaderContainer}>
+            <LoaderAnimation class={styles.loader} data-break-350 />
+          </div>
+        </Show>
       </div>
     </div>
   )

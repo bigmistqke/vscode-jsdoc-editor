@@ -64,3 +64,14 @@
     gap: 5px;
   }
 }
+
+.loaderContainer {
+  display: flex;
+  flex: 1;
+  justify-content: end;
+  align-items: center;
+}
+
+.loader {
+  flex: 0 16px;
+}

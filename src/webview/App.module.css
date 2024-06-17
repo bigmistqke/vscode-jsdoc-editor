@@ -4,12 +4,29 @@
   overflow: hidden;
 }
 
+.commentsContainer {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
 .comments {
   display: flex;
   position: relative;
   flex: 1;
   flex-direction: column;
   gap: 40px;
+  contain: layout;
   padding-bottom: 20px;
   overflow: auto;
+}
+
+.pendingReplaceAllOverlay {
+  position: fixed;
+  top: 0px;
+  right: 0px;
+  bottom: 0px;
+  left: 0px;
+  z-index: 2;
+  background: rgba(255, 255, 255, 0.1);
 }
