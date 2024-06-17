@@ -1,0 +1,37 @@
+.bare {
+  cursor: pointer;
+  outline: none !important;
+  border: none;
+  background-color: transparent;
+  padding: 0px;
+  color: var(--border-color);
+  font-size: 12pt;
+  &:focus,
+  &:hover {
+    outline: none !important;
+    color: white;
+  }
+}
+
+.default {
+  cursor: pointer;
+  outline: 1px solid var(--border-color);
+  border: none;
+  border-radius: 5px;
+  background-color: var(--background-color);
+  padding: 5px 10px;
+  color: white;
+  &:focus {
+    outline: 1px solid var(--border-color-active);
+    background: var(--button-color-focus);
+  }
+  &:hover:not(:focus) {
+    outline: 1px solid var(--border-color-hover);
+  }
+  &:global(.active) {
+    background: var(--button-color-active) !important;
+  }
+  &:hover {
+    background: var(--button-color-hover);
+  }
+}

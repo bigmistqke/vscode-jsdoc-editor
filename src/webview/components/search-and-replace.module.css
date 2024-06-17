@@ -59,42 +59,8 @@
     width: 75px;
   }
 
-  & .iconButton {
-    outline: none !important;
-    padding: 0px;
-    color: var(--border-color);
-    font-size: 12pt;
-    &:focus,
-    &:hover {
-      outline: none !important;
-      color: white;
-    }
-  }
-
   & .row {
     display: flex;
     gap: 5px;
-  }
-}
-
-@media (max-width: 400px) {
-  [data-break-400] {
-    display: none;
-  }
-}
-
-@media (max-width: 350px) {
-  [data-break-350] {
-    display: none;
-  }
-}
-
-[data-break-350-show] {
-  visibility: hidden;
-}
-
-@media (max-width: 350px) {
-  [data-break-350-show] {
-    visibility: visible;
   }
 }

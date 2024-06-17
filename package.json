@@ -50,6 +50,7 @@
     "clsx": "^2.1.1",
     "colord": "^2.9.3",
     "comment-parser": "^1.4.1",
+    "fuse.js": "^7.0.0",
     "jsdom": "^24.1.0",
     "shiki": "^1.6.2",
     "solid-js": "^1.8.11",

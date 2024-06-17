@@ -1,4 +1,5 @@
 import { Accessor, Resource } from 'solid-js'
+import { isNonNullable } from './is-nullable'
 
 export function when<
   T,
@@ -107,7 +108,7 @@ export function every<
 
     for (let i = 0; i < accessors.length; i++) {
       const _value = typeof accessors[i] === 'function' ? (accessors[i] as () => T)() : accessors[i]
-      if (!_value) return undefined
+      if (!isNonNullable(_value)) return undefined
       values[i] = _value
     }
 
@@ -116,8 +117,6 @@ export function every<
   return callback
 }
 
-export function wrapNullableResource<T extends Resource<any>>(
-  value: T,
-): Accessor<false | [ReturnType<T>]> {
+export function wrapNullableResource<T extends Resource<any>>(value: T): Accessor<false | [ReturnType<T>]> {
   return () => value.state === 'ready' && [value()]
 }

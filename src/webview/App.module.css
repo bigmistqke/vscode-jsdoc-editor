@@ -1,39 +1,12 @@
 .root {
   display: flex;
-  flex-direction: column;
   height: 100vh;
   overflow: hidden;
-
-  & input,
-  & button {
-    outline: 1px solid var(--border-color);
-    border: none;
-    border-radius: 5px;
-    background-color: var(--background-color);
-    padding: 5px 10px;
-    color: white;
-    &:focus {
-      outline: 1px solid var(--border-color-active);
-      background: var(--button-color-focus);
-    }
-    &:hover:not(:focus) {
-      outline: 1px solid var(--border-color-hover);
-    }
-  }
-
-  & button {
-    cursor: pointer;
-    &:global(.active) {
-      background: var(--button-color-active) !important;
-    }
-    &:hover {
-      background: var(--button-color-hover);
-    }
-  }
 }
 
 .comments {
   display: flex;
+  position: relative;
   flex: 1;
   flex-direction: column;
   gap: 40px;

@@ -1,5 +1,5 @@
 import { Index } from 'solid-js'
-import { createIdFromPath } from '~/utils/create-id-from-path'
+import { getIdFromPath } from '~/utils/get-id-from-path'
 import type { CleanedFile } from '~extension/types'
 import { BreadCrumbs } from './breadcrumbs'
 import { Comment } from './comment'
@@ -14,14 +14,14 @@ export function File(props: {
 }) {
   return (
     <div class={styles.file}>
-      <h1 class={styles.title}>
+      <h1 id={getIdFromPath(props.file.relativePath, 'file')} class={styles.title}>
         <BreadCrumbs breadcrumbs={props.file.relativePath.split('/')} />
       </h1>
       <Index each={props.file.comments}>
         {(comment, commentIndex) => (
           <Comment
             comment={comment()}
-            id={`${createIdFromPath(props.file.path)}${commentIndex}`}
+            id={getIdFromPath(props.file.relativePath, 'comment', commentIndex)}
             onInput={(source) => props.onInput(commentIndex, source)}
             onOpenLine={() => props.onOpenLine(props.file.path, comment().line)}
             onUpdateFile={() => props.onUpdateFile(props.file.path, commentIndex, comment().source)}

@@ -1,16 +1,21 @@
 import { getHighlighter } from 'shiki'
-import { Index, Show, createMemo, createResource, createSignal, mapArray, mergeProps } from 'solid-js'
+import { Index, Show, createEffect, createMemo, createResource, createSignal, mapArray, mergeProps } from 'solid-js'
 import { createStore, reconcile } from 'solid-js/store'
 import type { File, UpdateAllConfig } from '~extension/types'
 import styles from './App.module.css'
 import { File as FileComponent } from './components/file'
+import { Hierachy } from './components/hierarchy'
 import { SearchAndReplace } from './components/search-and-replace'
-import { calculateContrastingColor } from './solid-shiki-textarea/utils/calculate-contrasting-color'
+import { calculateContrastingColor } from './utils/calculate-contrasting-color'
 import { cleanComment as cleanSource } from './utils/clean-comment'
+import { getIdFromPath, getPathFromId } from './utils/get-id-from-path'
+import { throttle } from './utils/throttle'
 
 export default function App() {
+  let commentsContainer: HTMLDivElement
   const [theme, setTheme] = createSignal<string>() // Default theme
   const [isSearchAndReplaceOpened, setIsSearchAndReplaceOpened] = createSignal(false)
+  const [scrolledFilePath, setScrolledFilePath] = createSignal<string | undefined>()
   const [files, setFiles] = createStore<File[]>([])
   function setSource(fileIndex: number, commentIndex: number, source: string) {
     setFiles(fileIndex, 'comments', commentIndex, 'source', source)
@@ -40,6 +45,7 @@ export default function App() {
       },
     ),
   )
+  const initialised = createMemo((prev) => prev || (files && theme()), false)
 
   const [background] = createResource(theme, (theme) =>
     getHighlighter({ themes: [theme.toLowerCase()], langs: ['tsx'] })
@@ -92,20 +98,59 @@ export default function App() {
     })
   }
 
+  function updateScrolledFilePathArray() {
+    const titles = document.querySelectorAll('h1')
+    let currentStickyHeaderId: string | undefined = undefined
+
+    for (const title of titles) {
+      const rect = title.getBoundingClientRect()
+      if (rect.top <= 1 && rect.bottom >= 0) {
+        currentStickyHeaderId = title.id
+        break
+      }
+    }
+
+    if (currentStickyHeaderId) {
+      setScrolledFilePath(getPathFromId(currentStickyHeaderId))
+    }
+  }
+
+  function scrollToFilePath(pathArray: string) {
+    const id = getIdFromPath(pathArray, 'file')
+    const section = document.getElementById(id)?.parentElement
+    if (!section) return
+    const top = section.offsetTop
+    commentsContainer.scrollTo({ top })
+  }
+
+  createEffect(() => {
+    if (!initialised()) return
+    updateScrolledFilePathArray()
+  })
+
   return (
     <div class={styles.root} style={{ '--background-color': background() }}>
-      <SearchAndReplace
+      <Hierachy
+        scrolledFilePathArray={scrolledFilePath()?.split('/')}
         files={processedFiles()}
-        onClose={() => setIsSearchAndReplaceOpened(false)}
-        onOpen={() => setIsSearchAndReplaceOpened(true)}
-        onReplace={(fileIndex, commentIndex, source) => {
-          setSource(fileIndex, commentIndex, source)
-          postUpdateFile(files[fileIndex].path, commentIndex, source)
-        }}
-        onUpdateAll={postUpdateAll}
-        open={isSearchAndReplaceOpened()}
+        onScrollToFilePath={scrollToFilePath}
       />
-      <div class={styles.comments} style={{ ...themeStyles() }}>
+      <div
+        ref={commentsContainer!}
+        class={styles.comments}
+        style={themeStyles()}
+        onScroll={throttle(updateScrolledFilePathArray, 100)}>
+        <SearchAndReplace
+          files={processedFiles()}
+          onClose={() => setIsSearchAndReplaceOpened(false)}
+          onOpen={() => setIsSearchAndReplaceOpened(true)}
+          onReplace={(fileIndex, commentIndex, source) => {
+            setSource(fileIndex, commentIndex, source)
+            postUpdateFile(files[fileIndex].path, commentIndex, source)
+          }}
+          onReplaceAll={postUpdateAll}
+          open={isSearchAndReplaceOpened()}
+        />
         <Index each={processedFiles()}>
           {(file, fileIndex) => (
             <Show when={file().comments.length > 0}>

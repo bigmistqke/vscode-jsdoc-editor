@@ -8,7 +8,7 @@ export function BreadCrumbs(props: { breadcrumbs: string[] }) {
         <>
           <span>{breadcrumb}</span>
           <Show when={index() !== props.breadcrumbs.length - 1}>
-            <Codicon type="chevron-right" />
+            <Codicon kind="chevron-right" />
           </Show>
         </>
       )}

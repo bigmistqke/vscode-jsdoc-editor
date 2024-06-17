@@ -1,14 +1,14 @@
 import clsx from 'clsx'
 import { Show, createEffect, createMemo, createSignal, on, onMount } from 'solid-js'
-import { Codicon } from '~/solid-codicon'
 import { composeComment } from '~/utils/compose-comment'
-import { createIdFromPath } from '~/utils/create-id-from-path'
+import { getIdFromPath } from '~/utils/get-id-from-path'
 import { getMatchedRanges } from '~/utils/get-matched-ranges'
 import { decrementSignal, incrementSignal } from '~/utils/increment-signal'
 import { onToggle } from '~/utils/on-toggle'
 import { spliceString } from '~/utils/splice-string'
 import type { CleanedFile, UpdateAllConfig } from '~extension/types'
 import { composeRegex } from '~extension/utils/compose-regex'
+import { CodiconButton } from './codicon-button'
 import { getHighlightElement } from './comment'
 import styles from './search-and-replace.module.css'
 
@@ -48,7 +48,7 @@ export function SearchAndReplace(props: {
   onClose: () => void
   onOpen: () => void
   onReplace: (fileIndex: number, commentIndex: number, source: string) => void
-  onUpdateAll: (config: UpdateAllConfig) => void
+  onReplaceAll: (config: UpdateAllConfig) => void
   open: boolean
 }) {
   const [searchQuery, setSearchQuery] = createSignal<string>('')
@@ -84,7 +84,7 @@ export function SearchAndReplace(props: {
     if (!_query) return []
     const result: Match[] = []
     for (let fileIndex = 0; fileIndex < props.files.length; fileIndex++) {
-      const { path, comments } = props.files[fileIndex]
+      const { path, relativePath, comments } = props.files[fileIndex]
       let index = 0
       for (let commentIndex = 0; commentIndex < comments.length; commentIndex++) {
         const cleanedSource = comments[commentIndex].cleanedSource
@@ -101,7 +101,7 @@ export function SearchAndReplace(props: {
           index,
           fileIndex,
           commentIndex,
-          id: `${createIdFromPath(path)}${index}`,
+          id: getIdFromPath(relativePath, 'comment', commentIndex),
         }))
 
         result.push(...ranges)
@@ -256,7 +256,7 @@ export function SearchAndReplace(props: {
 
   // Replace all the matches with the replaceQuery
   function replaceAll() {
-    props.onUpdateAll({
+    props.onReplaceAll({
       search: {
         query: searchQuery(),
         isRegex: isRegex(),
@@ -316,28 +316,25 @@ export function SearchAndReplace(props: {
           }}
         />
         <div ref={searchIcons!} class={styles.inputIcons}>
-          <Codicon
+          <CodiconButton
             aria-label="Match Case"
             title="Match Case"
-            as="button"
-            type="case-sensitive"
-            class={isCaseSensitive() && 'active'}
+            kind="case-sensitive"
+            class={isCaseSensitive() ? 'active' : undefined}
             onClick={onToggle(setIsCaseSensitive)}
           />
-          <Codicon
+          <CodiconButton
             aria-label="Match Whole Word"
             title="Match Whole Word"
-            as="button"
-            type="whole-word"
-            class={isWholeWord() && 'active'}
+            kind="whole-word"
+            class={isWholeWord() ? 'active' : undefined}
             onClick={onToggle(setIsWholeWord)}
           />
-          <Codicon
+          <CodiconButton
             aria-label="Use Regular Expression"
             title="Use Regular Expression"
-            as="button"
-            class={isRegex() && 'active'}
-            type="regex"
+            class={isRegex() ? 'active' : undefined}
+            kind="regex"
             onClick={onToggle(setIsRegex)}
           />
         </div>
@@ -349,30 +346,28 @@ export function SearchAndReplace(props: {
             {currentMatchIndex() + 1} of {matches().length}
           </Show>
         </div>
-        <Codicon
+        <CodiconButton
           aria-label="Search Previous Occurence"
           title="Search Previous Occurence"
-          as="button"
-          class={styles.iconButton}
-          type="arrow-up"
+          kind="arrow-up"
           onClick={decrementMatchIndex}
           data-break-400
+          type="bare"
         />
-        <Codicon
+        <CodiconButton
           aria-label="Search Next Occurence"
-          title="Search Next Occurence"
-          as="button"
-          class={styles.iconButton}
-          type="arrow-down"
-          onClick={incrementMatchIndex}
           data-break-400
+          kind="arrow-down"
+          onClick={incrementMatchIndex}
+          title="Search Next Occurence"
+          type="bare"
         />
-        <Codicon
+        <CodiconButton
           aria-label="Close Search Panel"
-          as="button"
-          class={styles.iconButton}
-          type="close"
+          kind="close"
           onClick={() => props.onClose()}
+          title="Close Search Panel"
+          type="bare"
         />
       </div>
       <div class={styles.inputContainer}>
@@ -388,19 +383,13 @@ export function SearchAndReplace(props: {
           }}
         />
         <div class={styles.inputIcons} data-break-350-show>
-          <Codicon aria-label="Replace Next Occurence" as="button" type="replace" onClick={replace} />
-          <Codicon aria-label="Replace All Occurences" as="button" type="replace-all" onClick={replaceAll} />
+          <CodiconButton aria-label="Replace Next Occurences" kind="replace" onClick={replace} />
+          <CodiconButton aria-label="Replace All Occurences" kind="replace-all" onClick={replaceAll} />
         </div>
       </div>
       <div class={styles.row}>
-        <Codicon aria-label="Replace Next Occurence" as="button" type="replace" onClick={replace} data-break-350 />
-        <Codicon
-          aria-label="Replace All Occurences"
-          as="button"
-          type="replace-all"
-          onClick={replaceAll}
-          data-break-350
-        />
+        <CodiconButton aria-label="Replace Next Occurence" kind="replace" onClick={replace} data-break-350 />
+        <CodiconButton aria-label="Replace All Occurences" kind="replace-all" onClick={replaceAll} data-break-350 />
       </div>
     </div>
   )

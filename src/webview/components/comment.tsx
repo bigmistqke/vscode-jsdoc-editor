@@ -1,11 +1,12 @@
 import { parse } from 'comment-parser'
 import { codeToHast } from 'shiki/index.mjs'
 import { Show, createResource, createSignal, onMount } from 'solid-js'
-import { HastTextarea } from '~/hast-textarea'
+import { HastTextarea } from '~/components/hast-textarea'
 import { composeComment } from '~/utils/compose-comment'
 import { formatHastToMatchText } from '~/utils/format-hast-to-match-text'
 import { CleanedComment } from '~extension/types'
 import { BreadCrumbs } from './breadcrumbs'
+import { Button } from './button'
 import styles from './comment.module.css'
 
 export function getHighlightElement(id: string) {
@@ -98,7 +99,7 @@ export function Comment(props: {
         <h2>
           <BreadCrumbs breadcrumbs={props.comment.breadcrumbs} />
         </h2>
-        <button onClick={props.onOpenLine}>Go to Line {props.comment.line}</button>
+        <Button onClick={props.onOpenLine}>Go to Line {props.comment.line}</Button>
       </div>
       <div class={styles.textareaContainer}>
         <HastTextarea

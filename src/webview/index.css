@@ -20,10 +20,52 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
 }
 
+input {
+  outline: 1px solid var(--border-color);
+  border: none;
+  border-radius: 5px;
+  background-color: var(--background-color);
+  padding: 5px 10px;
+  color: white;
+  &:focus {
+    outline: 1px solid var(--border-color-active);
+    background: var(--button-color-focus);
+  }
+  &:hover:not(:focus) {
+    outline: 1px solid var(--border-color-hover);
+  }
+}
+
 :root::highlight(current-match) {
   background-color: rgb(50, 63, 108);
 }
 
 :root::highlight(all-matches) {
   background-color: rgb(91, 49, 46);
+}
+
+@media (max-width: 400px) {
+  [data-break-400] {
+    display: none;
+    visibility: hidden;
+  }
+}
+
+@media (max-width: 350px) {
+  [data-break-350] {
+    display: none;
+    visibility: hidden;
+  }
+}
+
+[data-break-350-show] {
+  display: none;
+  visibility: hidden;
+}
+
+@media (max-width: 350px) {
+  [data-break-350-show] {
+    display: inherit;
+    visibility: visible;
+  }
 }

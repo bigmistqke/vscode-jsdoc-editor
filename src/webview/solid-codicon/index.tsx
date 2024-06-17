@@ -574,17 +574,21 @@ const codiconMap = {
   percentage: 'ec33',
   'sort-percentage': 'ec33',
   'git-fetch': 'f101',
+} as const
+
+export type CodiconKind = keyof typeof codiconMap
+
+export function getCodicon(type: keyof typeof codiconMap) {
+  return codiconMap[type]
 }
 
-export function Codicon<T extends ValidComponent = 'div'>(
-  props: { type: keyof typeof codiconMap; as?: T } & ComponentProps<T>,
-) {
-  const [config, rest] = splitProps(props, ['class', 'as', 'type', 'style'])
+export function Codicon<T extends ValidComponent = 'div'>(props: { kind: CodiconKind; as?: T } & ComponentProps<T>) {
+  const [, rest] = splitProps(props, ['class', 'as', 'kind', 'style'])
   return (
     <Dynamic
-      component={config.as || 'div'}
-      class={clsx(config.class, styles.codicon)}
-      style={{ ...config.style, '--codicon': `'\\${codiconMap[config.type]}'` }}
+      component={props.as || 'div'}
+      class={clsx(props.class, styles.codicon)}
+      style={{ ...props.style, '--codicon': `'\\${codiconMap[props.kind]}'` }}
       {...rest}
     />
   )
